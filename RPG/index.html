@@ -1,0 +1,1924 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Abyss Delver: 迷宮都市の戦記 - プロトタイプ</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Outfit:wght@300;500;700&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0806;
+            --panel-bg: rgba(20, 15, 10, 0.85);
+            --accent-blue: #4facfe;
+            --accent-purple: #9d4edd;
+            --accent-green: #4ade80;
+            --accent-gold: #d4af37;
+            --accent-red: #e63946;
+            --text-main: #eaddcf;
+            --border-gold: #8a6d3b;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: var(--bg-dark);
+            background-image: radial-gradient(at 10% 20%, rgba(168, 85, 247, 0.1) 0px, transparent 50%), radial-gradient(at 90% 80%, rgba(56, 189, 248, 0.1) 0px, transparent 50%);
+            color: var(--text-main); font-family: 'Outfit', 'Noto Sans JP', sans-serif;
+            min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow-x: hidden; padding: 10px;
+        }
+
+        header { text-align: center; margin-bottom: 10px; }
+        h1 { font-family: 'Orbitron', sans-serif; font-size: 2rem; font-weight: 900; background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 2px; }
+        
+        .quest-guide {
+            background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 20px;
+            padding: 6px 20px; font-size: 0.85rem; color: #d8b4fe; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; font-weight: 500;
+        }
+
+        .main-container { display: flex; gap: 20px; max-width: 1100px; width: 100%; justify-content: center; align-items: flex-start; }
+
+        .game-panel {
+            position: relative; background: var(--panel-bg); backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 16px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5); display: flex; flex-direction: column; align-items: center;
+        }
+        canvas { border-radius: 12px; background-color: #0b0f19; box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.05); display: block; }
+
+        /* HUD */
+        .hud-bar { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr; width: 100%; gap: 10px; margin-top: 10px; background: rgba(0, 0, 0, 0.45); border-radius: 10px; padding: 10px 15px; border: 1px solid rgba(255, 255, 255, 0.05); }
+        .hud-item { display: flex; flex-direction: column; gap: 4px; align-items: center; }
+        .hud-item:not(:last-child) { border-right: 1px solid rgba(255, 255, 255, 0.1); }
+        .hud-label { font-size: 0.65rem; color: #94a3b8; font-family: 'Orbitron', sans-serif; }
+        .hud-value { font-weight: 700; display: flex; align-items: center; gap: 4px; font-size: 0.95rem; }
+        .meter-container { width: 100px; height: 8px; background: rgba(255, 255, 255, 0.1); border-radius: 4px; overflow: hidden; margin-top: 2px; }
+        .meter-fill { height: 100%; border-radius: 4px; transition: width 0.1s ease; }
+        .hp-fill { background: linear-gradient(90deg, #ef4444, #f87171); }
+        .mp-fill { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+        .xp-fill { background: linear-gradient(90deg, #10b981, #34d399); }
+        .sp-fill { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+        .ult-fill { background: linear-gradient(90deg, #8b5cf6, #c084fc); }
+        .gold-value { color: var(--accent-gold); font-family: 'Orbitron', sans-serif; }
+        
+        /* 鍵アイコンUI */
+        .key-slot { font-size: 1.1rem; filter: grayscale(1) brightness(0.4); transition: all 0.3s; margin: 0 2px; }
+        .key-slot.active { filter: grayscale(0) brightness(1.2) drop-shadow(0 0 4px currentColor); }
+        .key-start { color: var(--accent-blue); }
+        .key-forest { color: var(--accent-green); }
+        .key-crystal { color: var(--accent-purple); }
+        .key-temple { color: var(--accent-red); }
+
+        .control-panel { width: 300px; background: var(--panel-bg); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 15px; }
+        .panel-title { font-family: 'Orbitron', sans-serif; font-size: 0.8rem; font-weight: 700; border-bottom: 2px solid rgba(255, 255, 255, 0.1); padding-bottom: 4px; color: var(--accent-blue); margin-bottom: 8px; }
+        .key-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; margin-bottom: 6px; }
+        .key-cap { background: linear-gradient(180deg, #1e293b, #0f172a); border: 1px solid rgba(255, 255, 255, 0.2); border-bottom: 3px solid rgba(0, 0, 0, 0.6); border-radius: 4px; padding: 2px 6px; font-weight: 700; }
+        
+        /* スキルUI */
+        .skill-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+        .skill-box { background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 8px; display: flex; flex-direction: column; align-items: center; }
+        .skill-key { font-family: 'Orbitron'; color: var(--accent-gold); font-size: 0.9rem; font-weight: 700; margin-bottom: 4px; }
+        .skill-name { font-size: 0.65rem; color: #cbd5e1; }
+        .status-badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; text-align: center; width: 100%; }
+        .badge-active { background: rgba(16, 185, 129, 0.2); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.3); }
+
+        .toast { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(168, 85, 247, 0.4); color: white; padding: 8px 16px; border-radius: 20px; font-size: 0.85rem; font-weight: 700; box-shadow: 0 10px 25px rgba(0,0,0,0.6); opacity: 0; transition: opacity 0.2s, top 0.2s; z-index: 100; pointer-events: none; }
+        .toast.show { opacity: 1; top: 30px; }
+        .level-up-banner { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%) scale(0.5); font-family: 'Orbitron', sans-serif; font-size: 2.5rem; font-weight: 900; color: var(--accent-gold); opacity: 0; z-index: 10; transition: all 0.5s; pointer-events: none; }
+        .level-up-banner.show { opacity: 1; transform: translate(-50%, -50%) scale(1.0); }
+
+        .dialogue-overlay { position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); width: 560px; display: none; z-index: 300; }
+        .dialogue-overlay.show { display: block; }
+        .dialogue-box { background: rgba(11, 15, 30, 0.92); border: 2px solid var(--accent-blue); border-radius: 12px; padding: 18px 24px; }
+        .dialogue-name { font-weight: 700; color: var(--accent-blue); margin-bottom: 8px; font-size: 1rem; }
+        .dialogue-text { color: white; font-size: 0.9rem; line-height: 1.6; min-height: 40px; white-space: pre-wrap; }
+        
+        .shop-modal { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9); width: 380px; background: rgba(11, 15, 30, 0.95); border: 2px solid rgba(56, 189, 248, 0.4); border-radius: 20px; padding: 20px; z-index: 200; opacity: 0; pointer-events: none; transition: all 0.3s; }
+        .shop-modal.open { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1.0); }
+        .shop-item { display: flex; justify-content: space-between; align-items: center; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255,255,255,0.05); padding: 10px; border-radius: 10px; margin-bottom: 8px; }
+        .buy-btn { background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple)); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 6px 12px; border-radius: 8px; font-size: 0.75rem; font-weight: 700; cursor: pointer; }
+
+        .menu-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(10, 8, 5, 0.97); z-index: 400; display: none; padding: 30px; box-sizing: border-box; flex-direction: column; border-radius: 16px; opacity: 0; transition: opacity 0.3s; pointer-events: none; border: 2px solid var(--border-gold); }
+        .menu-overlay.open { display: flex; opacity: 1; pointer-events: auto; }
+        .menu-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid var(--border-gold); padding-bottom: 5px; margin-bottom: 15px; }
+        .menu-title { font-family: 'serif'; font-size: 1.8rem; font-weight: 700; color: var(--accent-gold); text-shadow: 1px 1px 4px #000; }
+        .menu-content { display: flex; gap: 20px; flex: 1; height: 100%; overflow: hidden; }
+        .menu-column { flex: 1; background: rgba(0,0,0,0.5); border-radius: 12px; padding: 15px; border: 1px solid var(--border-gold); overflow-y: auto; }
+        .menu-section-title { font-size: 1.1rem; font-weight: 700; color: var(--accent-gold); margin-bottom: 10px; border-bottom: 1px dashed var(--border-gold); padding-bottom: 5px; font-family: serif; text-shadow: 1px 1px 2px #000; }
+        .inv-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(212, 175, 55, 0.15); font-size: 0.85rem; }
+    </style>
+    <script src="js/mapData.js"></script>
+    <script src="js/main.js"></script>
+</head>
+<body>
+    <header>
+        <h1>Abyss Delver</h1>
+        <p class="subtitle">迷宮都市の戦記 - ハクスラRPG</p>
+    </header>
+
+    <div id="questGuide" class="quest-guide">
+        🧭 <span id="questText">クエスト: 目の前の【ホログラム】に近づき、Eキーで話を聞け！</span>
+    </div>
+
+    <div class="main-container">
+        <div class="game-panel">
+            <div id="toast" class="toast">メッセージ</div>
+            <div id="levelUpBanner" class="level-up-banner">LEVEL UP!</div>
+            <div id="dialogueOverlay" class="dialogue-overlay">
+                <div class="dialogue-box">
+                    <div id="dialogueName" class="dialogue-name">NPC</div>
+                    <div id="dialogueText" class="dialogue-text"></div>
+                    <div style="text-align:right; color:#fbbf24; font-size:0.8rem; margin-top:5px;">▶ Spaceキーで次へ</div>
+                </div>
+            </div>
+
+            <canvas id="gameCanvas" width="700" height="480"></canvas>
+            
+            <div id="shopModal" class="shop-modal">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:10px; margin-bottom:10px;">
+                    <span style="font-family:'Orbitron',sans-serif; font-size:1.1rem; font-weight:700; color:var(--accent-blue);">🔮 古代の強化碑石</span>
+                    <button onclick="closeShop()" style="background:none; border:none; color:#94a3b8; font-size:1.2rem; cursor:pointer;">×</button>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:15px; font-size:0.8rem;">
+                    <span color="#94a3b8">エネルギーを吸収し、能力を強化します。</span>
+                    <span id="shopGoldDisplay" style="color:var(--accent-gold); font-weight:700;">0 G</span>
+                </div>
+                <div class="shop-item">
+                    <div style="display:flex; flex-direction:column;"><span style="font-weight:700;">生命のルーン</span><span style="font-size:0.7rem; color:#94a3b8;">最大HPを0.5増加</span><span style="font-size:0.75rem; color:var(--accent-gold); font-weight:700;">💰 60 G</span></div>
+                    <button class="buy-btn" onclick="buyItem('hp', 60)">強化</button>
+                </div>
+                <div class="shop-item">
+                    <div style="display:flex; flex-direction:column;"><span style="font-weight:700;">摩擦歪曲の呪文</span><span style="font-size:0.7rem; color:#94a3b8;">ホバー(Shift)解放</span><span id="hoverPrice" style="font-size:0.75rem; color:var(--accent-gold); font-weight:700;">💰 100 G</span></div>
+                    <button id="hoverBuyBtn" class="buy-btn" onclick="buyItem('hover', 100)">解放</button>
+                </div>
+            </div>
+            <div id="soulDriveModal" class="shop-modal">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:10px; margin-bottom:10px;">
+                    <span style="font-family:'Orbitron',sans-serif; font-size:1.1rem; font-weight:700; color:var(--accent-purple);">⟁ SOUL DRIVE</span>
+                    <button onclick="closeSoulDrive()" style="background:none; border:none; color:#94a3b8; font-size:1.2rem; cursor:pointer;">×</button>
+                </div>
+                <div style="margin-bottom:15px; font-size:0.8rem; color:#94a3b8; display:flex; justify-content:space-between; align-items:center;">
+                    <span>左腕のデバイスからかつての仲間の「魂の波長（記憶）」をロードし、戦闘クラスを最適化します。</span>
+                    <span style="color:var(--accent-gold); font-weight:700;">記憶の欠片: <span id="memoryShardCount">0</span></span>
+                </div>
+                <button id="restoreVisionBtn" onclick="restoreVision()" class="buy-btn" style="width:100%; margin-bottom:15px; background:linear-gradient(135deg, #38bdf8, #818cf8); padding:8px; font-size:0.85rem;">🎥 ビジョンを復元する (欠片1消費)</button>
+                <div id="soulList"></div>
+            </div>
+
+            <div id="cookingModal" class="shop-modal">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:10px; margin-bottom:10px;">
+                    <span style="font-family:'Orbitron',sans-serif; font-size:1.1rem; font-weight:700; color:var(--accent-green);">🍖 酒場「迷宮亭」</span>
+                    <button onclick="closeCooking()" style="background:none; border:none; color:#94a3b8; font-size:1.2rem; cursor:pointer;">×</button>
+                </div>
+                <div style="margin-bottom:15px; font-size:0.8rem; color:#94a3b8;">
+                    素材を消費して料理を作り、一時的なステータスアップの【自炊バフ】を得る。※ゲームオーバーでリセット
+                </div>
+                
+                <div class="shop-item">
+                    <div style="display:flex; flex-direction:column;"><span style="font-weight:700; color:white;">スライムゼリー</span><span style="font-size:0.7rem; color:#94a3b8;">最大HP+20 (必要: 粘液x3)</span></div>
+                    <button class="buy-btn" onclick="cookFood('jelly')" style="background:var(--accent-blue);">調理</button>
+                </div>
+                <div class="shop-item">
+                    <div style="display:flex; flex-direction:column;"><span style="font-weight:700; color:white;">風のスープ</span><span style="font-size:0.7rem; color:#94a3b8;">SPD+30 (必要: 結晶x2)</span></div>
+                    <button class="buy-btn" onclick="cookFood('soup')" style="background:var(--accent-green);">調理</button>
+                </div>
+                <div class="shop-item">
+                    <div style="display:flex; flex-direction:column;"><span style="font-weight:700; color:white;">鉄壁の串焼き</span><span style="font-size:0.7rem; color:#94a3b8;">DEF+3 (必要: 鉄x2, 粘液x1)</span></div>
+                    <button class="buy-btn" onclick="cookFood('skewer')" style="background:var(--accent-red);">調理</button>
+                </div>
+            </div>
+
+            <div id="mainMenuOverlay" class="menu-overlay">
+                <div class="menu-header">
+                    <div class="menu-title">STATUS & MENU</div>
+                    <div style="color:#94a3b8; font-size:0.9rem;">[Tab] / [Esc] 閉じる</div>
+                </div>
+                <div class="menu-content">
+                    <div class="menu-column">
+                        <div class="menu-section-title">👤 ソウル・ステータス</div>
+                        <div id="menuSoulName" style="font-size:1.5rem; font-weight:700; color:var(--accent-purple); margin-bottom:10px;">⚔️ 剣士アレス</div>
+                        <div class="inv-item"><span>LEVEL</span><span id="menuLv" style="color:var(--accent-blue); font-weight:700;">1</span></div>
+                        <div class="inv-item"><span>HP</span><span id="menuHp">100 / 100</span></div>
+                        <div class="inv-item"><span>MP</span><span id="menuMp">50 / 50</span></div>
+                        <div class="inv-item"><span>ATK</span><span id="menuAtk">15</span></div>
+                        <div class="inv-item"><span>DEF</span><span id="menuDef">5</span></div>
+                        <div class="inv-item"><span>SPD</span><span id="menuSpd">220</span></div>
+                        
+                        <div class="menu-section-title" style="margin-top:30px;">🎮 操作方法</div>
+                        <div class="key-row"><span class="action-desc">移動</span><span class="key-cap">WASD</span></div>
+                        <div class="key-row"><span class="action-desc">通常攻撃 / コンボ</span><span class="key-cap">J</span></div>
+                        <div class="key-row"><span class="action-desc">回避 / 移動スキル</span><span class="key-cap">K (Space)</span></div>
+                        <div class="key-row"><span class="action-desc">アクティブスキル</span><span class="key-cap">I , O</span></div>
+                        <div class="key-row"><span class="action-desc">覚醒必殺技 (ULT)</span><span class="key-cap">L</span></div>
+                        <div class="key-row"><span class="action-desc">インタラクト</span><span class="key-cap">E</span></div>
+                        <div class="key-row"><span class="action-desc">メニュー開閉</span><span class="key-cap">Tab</span></div>
+                        <div class="key-row"><span class="action-desc">ソウル・ドライブ</span><span class="key-cap">C</span></div>
+                    </div>
+                    <div class="menu-column">
+                        <div class="menu-section-title">⚔️ アクティブスキル</div>
+                        <div id="menuSkills" style="display:flex; flex-direction:column; gap:5px;"></div>
+
+                        <div class="menu-section-title" style="margin-top:30px;">🎒 インベントリ</div>
+                        <div class="inv-item"><span>所持金</span><span id="menuGold" style="color:var(--accent-gold); font-weight:700;">0 G</span></div>
+                        <div class="inv-item"><span>鍵</span><span id="menuKeys">なし</span></div>
+                        <div style="margin-top:10px;" id="menuInventoryList"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="hud-bar" style="flex-wrap: wrap;">
+                <div class="hud-item" style="cursor:pointer;" onclick="openSoulDrive()"><span class="hud-label">ソウル(C)</span><div class="hud-value"><span id="currentSoulName" style="color:var(--accent-purple); font-weight:700; font-size:0.8rem;">⚔️ アレス</span></div></div>
+                <div class="hud-item"><span class="hud-label">HP</span><div class="hud-value" style="flex-direction:column; gap:2px;"><span id="hpText" style="font-size:0.8rem;">100/100</span><div class="meter-container" style="width:80px;"><div id="hpBar" class="meter-fill hp-fill" style="width:100%;"></div></div></div></div>
+                <div class="hud-item"><span class="hud-label">MP</span><div class="hud-value" style="flex-direction:column; gap:2px;"><span id="mpText" style="font-size:0.8rem;">50/50</span><div class="meter-container" style="width:80px;"><div id="mpBar" class="meter-fill mp-fill" style="width:100%;"></div></div></div></div>
+                <div class="hud-item"><span class="hud-label">SP</span><div class="hud-value" style="flex-direction:column; gap:2px;"><span id="spText" style="font-size:0.8rem;">100/100</span><div class="meter-container" style="width:80px;"><div id="spBar" class="meter-fill sp-fill" style="width:100%;"></div></div></div></div>
+                <div class="hud-item"><span class="hud-label">ULT (L)</span><div class="hud-value" style="flex-direction:column; gap:2px;"><span id="ultText" style="font-size:0.8rem;">0%</span><div class="meter-container" style="width:80px;"><div id="ultBar" class="meter-fill ult-fill" style="width:0%;"></div></div></div></div>
+                <div class="hud-item"><span class="hud-label">STAT</span><div class="hud-value" style="flex-direction:column; gap:2px; font-size:0.75rem; color:#cbd5e1;"><span id="atkDisplay">ATK: 15</span><span id="defDisplay">DEF: 5</span></div></div>
+                <div class="hud-item"><span class="hud-label">LV/EXP</span><div class="hud-value" style="flex-direction:column; gap:2px;"><span id="levelDisplay" style="background:var(--accent-blue); padding:0 6px; border-radius:10px; font-size:0.7rem;">LV 1</span><div class="meter-container" style="width:60px;"><div id="xpBar" class="meter-fill xp-fill" style="width:0%;"></div></div></div></div>
+                <div class="hud-item"><span class="hud-label">GOLD</span><div class="hud-value"><span id="goldDisplay" class="gold-value">0 G</span></div></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/mapData.js"></script>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const toast = document.getElementById('toast');
+
+        const TILE_SIZE = 32;
+        // MAP_COLS, MAP_ROWSは後で動的にlet宣言される
+        const COLLISION_RADIUS = 12;
+        const SAFE_MARGIN = 2;
+
+        const PlayerState = { IDLE: 'idle', WALK: 'walk', ATTACK: 'attack', DASH: 'dash', HOVER: 'hover', DIALOGUE: 'dialogue' };
+
+        const souls = {
+            'Ares': { id: 'Ares', name: '剣士アレス', icon: '⚔️', level: 1, xp: 0, xpNeeded: 80, maxHp: 100, maxMp: 50, atk: 15, def: 5, spd: 220, unlocked: true },
+            'Cyan': { id: 'Cyan', name: '盗賊シアン', icon: '🗡️', level: 1, xp: 0, xpNeeded: 80, maxHp: 60, maxMp: 70, atk: 25, def: 2, spd: 300, unlocked: true }, // 初期解放テスト用
+            'Lilith':{ id: 'Lilith', name: '魔法使いリリス', icon: '🔮', level: 1, xp: 0, xpNeeded: 80, maxHp: 50, maxMp: 120, atk: 40, def: 1, spd: 180, unlocked: false }
+        };
+
+        const player = {
+            x: 0, y: 0, vx: 0, vy: 0, angle: 0, 
+            currentSoulId: 'Ares',
+            level: souls['Ares'].level, xp: souls['Ares'].xp, xpNeeded: souls['Ares'].xpNeeded, gold: 0, weaponLevel: 1, armorLevel: 1, maxReachedFloor: 1, sp: 100, maxSp: 100, ultGauge: 0, comboCount: 0, chargeTimer: 0, isAttacking: false,
+            keys: { start: false, forest: false, crystal: false, temple: false },
+            hp: souls['Ares'].maxHp, maxHp: souls['Ares'].maxHp,
+            mp: souls['Ares'].maxMp, maxMp: souls['Ares'].maxMp,
+            atk: souls['Ares'].atk, def: souls['Ares'].def, spd: souls['Ares'].spd,
+            state: PlayerState.IDLE, dashTimer: 0, attackTimer: 0, warping: false,
+            activeQuest: null, questProgress: 0,
+            inventory: {},
+            foodBuffs: { maxHp: 0, atk: 0, def: 0, spd: 0 },
+            skills: {
+                I: { name: 'Dash', cd: 0, maxCd: 3, mp: 5 },
+                O: { name: 'Spin', cd: 0, maxCd: 5, mp: 10 },
+                K: { name: 'Provoke', cd: 0, maxCd: 10, mp: 15 },
+                L: { name: 'Quake', cd: 0, maxCd: 20, mp: 30 }
+            }
+        };
+
+        const camera = { x: 0, y: 0 };
+        const keys = {};
+
+        // === 3x3 グリッドによる超広大マップ構築 ===
+        // === シーン（マップ）管理システム ===
+        const themes = {
+            city: { name: "迷宮都市アビス・エッジ", floor: '#94a3b8', wall: '#78350f', border: '#475569', pit: '#1e293b', spike: '#000', npc: '#fbbf24' },
+            guild: { name: "冒険者ギルド", floor: '#d2b48c', wall: '#8b4513', border: '#cd853f', pit: '#000', spike: '#000', npc: '#fbbf24' },
+            dungeon: { name: "アビス第一階層", floor: '#0f172a', wall: '#1e293b', border: '#38bdf8', pit: '#020617', spike: '#ef4444', npc: '#38bdf8' },
+            crystal: { name: "魔導クリスタル鉱脈", floor: '#1e1b4b', wall: '#312e81', border: '#c084fc', pit: '#020617', spike: '#8b5cf6', npc: '#c084fc' },
+            dungeon_f2: { name: "第2階層：巨石と機構の試練", floor: '#0f172a', wall: '#1e293b', border: '#f59e0b', pit: '#020617', spike: '#ef4444', npc: '#38bdf8' },
+            dungeon_f3: { name: "第3階層：機巧と焦燥の回廊", floor: '#0c0a09', wall: '#292524', border: '#22d3ee', pit: '#020617', spike: '#ef4444', npc: '#38bdf8' },
+            dungeon_f4: { name: "第4階層：閉ざされた観測所", floor: '#030712', wall: '#111827', border: '#6366f1', pit: '#000', spike: '#ef4444', npc: '#818cf8' },
+            dungeon_f5: { name: "第5階層：深淵の共鳴炉", floor: '#0c0a09', wall: '#1c1917', border: '#f43f5e', pit: '#020617', spike: '#ef4444', npc: '#fb7185' },
+            dungeon_f6: { name: "第6階層：浸食された緑廊", floor: '#052e16', wall: '#14532d', border: '#4ade80', pit: '#022c22', spike: '#ef4444', npc: '#86efac' },
+            dungeon_f7: { name: "第7階層：木漏れ日と胞子の迷宮", floor: '#1a2e05', wall: '#365314', border: '#a3e635', pit: '#1a2e05', spike: '#c084fc', npc: '#bef264' }
+        };
+
+        
+        // ====== エンティティ定義とマップロードシステム ======
+        let MAP_COLS = 0; let MAP_ROWS = 0;
+        let map = []; let npcs = []; let enemies = []; let chests = [];
+        let currentSceneId = ''; let currentScene = null;
+        let currentSpawnC = 0; let currentSpawnR = 0;
+
+                        class Enemy {
+            constructor(c, r, type) {
+                this.spawnX = (c+0.5)*TILE_SIZE; this.spawnY = (r+0.5)*TILE_SIZE;
+                this.x = this.spawnX; this.y = this.spawnY; this.vx = 0; this.vy = 0;
+                this.type = type; this.isAlive = true; this.isDead = false; this.respawnTimer = 0;
+                this.hitStun = 0; this.attackCooldown = 0;
+                this.state = 'idle'; this.stateTimer = 0;
+                
+                this.canShoot = (type === 'golem' || type === 'boss' || type === 'guardian' || type === 'skeleton');
+                
+                if(type === 'mini_boss') { this.maxHp = 150; this.radius = 20; this.color = '#eab308'; this.speed = 70; this.xp = 150; this.gold = 100; this.atk = 15; this.dropItem = '鉄くず'; } else if(type === 'slime') { this.maxHp = 2; this.radius = 12; this.color = '#38bdf8'; this.speed = 80; this.xp = 15; this.gold = 10; this.dropItem = 'スライムの粘液'; }
+                else if(type === 'wind_slime') { this.maxHp = 3; this.radius = 10; this.color = '#10b981'; this.speed = 150; this.xp = 25; this.gold = 15; this.dropItem = '風の結晶'; }
+                else if(type === 'guardian') { this.maxHp = 5; this.radius = 14; this.color = '#fcd34d'; this.speed = 100; this.xp = 40; this.gold = 20; this.dropItem = '鉄くず'; }
+                else if(type === 'golem') { this.maxHp = 8; this.radius = 16; this.color = '#a855f7'; this.speed = 40; this.xp = 50; this.gold = 30; this.dropItem = '魔法の石板'; }
+                else if(type === 'bat') { this.maxHp = 2; this.radius = 8; this.color = '#94a3b8'; this.speed = 160; this.xp = 20; this.gold = 10; this.dropItem = 'コウモリの羽'; }
+                else if(type === 'skeleton') { this.maxHp = 4; this.radius = 12; this.color = '#f1f5f9'; this.speed = 90; this.xp = 30; this.gold = 15; this.dropItem = '骨のかけら'; }
+                else if(type === 'boss') { this.maxHp = 300; this.radius = 32; this.color = '#ef4444'; this.speed = 110; this.xp = 500; this.gold = 300; this.isInvincible = true; this.barrierRadius = 45; this.dropItem = 'アビスコア'; }
+                
+                
+                let floorLevel = 1;
+                if (currentSceneId && currentSceneId.startsWith('dungeon_f')) {
+                    floorLevel = parseInt(currentSceneId.split('_f')[1]);
+                }
+                const levelBonus = (floorLevel - 1) * 5;
+                this.level = 1 + levelBonus;
+                this.maxHp = Math.floor(this.maxHp * (1 + levelBonus * 0.1));
+                this.hp = this.maxHp;
+                if (this.atk) this.atk = Math.floor(this.atk * (1 + levelBonus * 0.1));
+                this.xp += levelBonus * 5;
+                this.gold += levelBonus * 2;
+    
+            }
+
+            update(dt) {
+
+                if (this.isDead) {
+                    this.respawnTimer -= dt;
+                    if (this.respawnTimer <= 0) {
+                        this.isDead = false; this.isAlive = true;
+                        this.x = this.spawnX; this.y = this.spawnY;
+                        
+                let floorLevel = 1;
+                if (currentSceneId && currentSceneId.startsWith('dungeon_f')) {
+                    floorLevel = parseInt(currentSceneId.split('_f')[1]);
+                }
+                const levelBonus = (floorLevel - 1) * 5;
+                this.level = 1 + levelBonus;
+                this.maxHp = Math.floor(this.maxHp * (1 + levelBonus * 0.1));
+                this.hp = this.maxHp;
+                if (this.atk) this.atk = Math.floor(this.atk * (1 + levelBonus * 0.1));
+                this.xp += levelBonus * 5;
+                this.gold += levelBonus * 2;
+     this.state = 'idle';
+                    }
+                    return;
+                }
+
+                if (this.hitStun > 0) {
+                    this.hitStun -= dt;
+                    let nextX = this.x + this.vx * dt; let nextY = this.y + this.vy * dt;
+                    let canMove = true;
+                    let adjTiles = [
+                        getTileAt(nextX - 10, nextY - 10), getTileAt(nextX + 10, nextY - 10),
+                        getTileAt(nextX - 10, nextY + 10), getTileAt(nextX + 10, nextY + 10)
+                    ];
+                    if (adjTiles.some(t => [1,2,4,7,8,9,11].includes(t))) canMove = false;
+                    if (canMove) { this.x = nextX; this.y = nextY; }
+                    this.vx *= 0.9; this.vy *= 0.9;
+                    return;
+                }
+
+                this.stateTimer -= dt;
+                const dist = Math.hypot(this.x - player.x, this.y - player.y);
+                const angle = Math.atan2(player.y - this.y, player.x - this.x);
+
+                if (this.type === 'slime' || this.type === 'wind_slime') {
+                    if (this.state === 'idle' || this.state === 'chase') {
+                        if (dist < 120 && this.stateTimer <= 0) {
+                            this.state = 'prepare_attack'; this.stateTimer = 0.5; this.vx = 0; this.vy = 0;
+                        } else {
+                            this.state = 'chase';
+                            if (dist < 300) { this.vx = Math.cos(angle)*this.speed; this.vy = Math.sin(angle)*this.speed; }
+                            else { this.vx = 0; this.vy = 0; }
+                        }
+                    } else if (this.state === 'prepare_attack' && this.stateTimer <= 0) {
+                        this.state = 'attacking'; this.stateTimer = 0.8;
+                        this.vx = Math.cos(angle)*this.speed*3; this.vy = Math.sin(angle)*this.speed*3;
+                    } else if (this.state === 'attacking' && this.stateTimer <= 0) {
+                        this.state = 'cooldown'; this.stateTimer = 1.0; this.vx = 0; this.vy = 0;
+                    } else if (this.state === 'cooldown' && this.stateTimer <= 0) {
+                        this.state = 'idle';
+                    }
+                    if (this.state !== 'prepare_attack') { let nextX = this.x + this.vx * dt; let nextY = this.y + this.vy * dt;
+                    let canMove = true;
+                    let adjTiles = [
+                        getTileAt(nextX - 10, nextY - 10), getTileAt(nextX + 10, nextY - 10),
+                        getTileAt(nextX - 10, nextY + 10), getTileAt(nextX + 10, nextY + 10)
+                    ];
+                    if (adjTiles.some(t => [1,2,4,7,8,9,11].includes(t))) canMove = false;
+                    if (canMove) { this.x = nextX; this.y = nextY; } }
+                }
+                else if (this.type === 'bat') {
+                    if (this.state === 'idle' || this.state === 'chase') {
+                        if (dist < 150 && this.stateTimer <= 0) {
+                            this.state = 'attacking'; this.stateTimer = 0.6;
+                            this.vx = Math.cos(angle)*this.speed*2.5; this.vy = Math.sin(angle)*this.speed*2.5;
+                        } else {
+                            this.state = 'chase';
+                            if (dist < 350) {
+                                const targetAngle = angle + Math.sin(Date.now()*0.003)*1.5;
+                                this.vx = Math.cos(targetAngle)*this.speed; this.vy = Math.sin(targetAngle)*this.speed;
+                            } else { this.vx = 0; this.vy = 0; }
+                        }
+                    } else if (this.state === 'attacking' && this.stateTimer <= 0) {
+                        this.state = 'cooldown'; this.stateTimer = 1.5;
+                        this.vx = -Math.cos(angle)*this.speed; this.vy = -Math.sin(angle)*this.speed;
+                    } else if (this.state === 'cooldown' && this.stateTimer <= 0) {
+                        this.state = 'idle';
+                    }
+                    let nextX = this.x + this.vx * dt; let nextY = this.y + this.vy * dt;
+                    let canMove = true;
+                    let adjTiles = [
+                        getTileAt(nextX - 10, nextY - 10), getTileAt(nextX + 10, nextY - 10),
+                        getTileAt(nextX - 10, nextY + 10), getTileAt(nextX + 10, nextY + 10)
+                    ];
+                    if (adjTiles.some(t => [1,2,4,7,8,9,11].includes(t))) canMove = false;
+                    if (canMove) { this.x = nextX; this.y = nextY; }
+                }
+                else if (this.type === 'skeleton') {
+                    if (this.state === 'idle' || this.state === 'chase') {
+                        if (dist < 200 && dist > 100) {
+                            this.vx = 0; this.vy = 0;
+                            if (this.stateTimer <= 0) { this.state = 'prepare_attack'; this.stateTimer = 0.5; }
+                        } else if (dist <= 100) {
+                            this.vx = -Math.cos(angle)*this.speed*0.8; this.vy = -Math.sin(angle)*this.speed*0.8;
+                        } else if (dist < 400) {
+                            this.vx = Math.cos(angle)*this.speed; this.vy = Math.sin(angle)*this.speed;
+                        } else { this.vx = 0; this.vy = 0; }
+                    } else if (this.state === 'prepare_attack' && this.stateTimer <= 0) {
+                        this.state = 'cooldown'; this.stateTimer = 2.0;
+                        enemyProjectiles.push(new EnemyProjectile(this.x, this.y, angle, 300, '#e2e8f0'));
+                    } else if (this.state === 'cooldown' && this.stateTimer <= 0) {
+                        this.state = 'idle';
+                    }
+                    let nextX = this.x + this.vx * dt; let nextY = this.y + this.vy * dt;
+                    let canMove = true;
+                    let adjTiles = [
+                        getTileAt(nextX - 10, nextY - 10), getTileAt(nextX + 10, nextY - 10),
+                        getTileAt(nextX - 10, nextY + 10), getTileAt(nextX + 10, nextY + 10)
+                    ];
+                    if (adjTiles.some(t => [1,2,4,7,8,9,11].includes(t))) canMove = false;
+                    if (canMove) { this.x = nextX; this.y = nextY; }
+                }
+                else if (this.type === 'boss') {
+                    // ボスは常にバリアなし、積極的にプレイヤーを追尾＆攻撃
+                    this.isInvincible = false;
+
+                    // プレイヤーを追尾
+                    if (dist < 500) {
+                        this.vx = Math.cos(angle) * this.speed;
+                        this.vy = Math.sin(angle) * this.speed;
+                    } else {
+                        // 遠い場合はランダム移動
+                        if (Math.random() < 0.02) { this.vx = (Math.random()-0.5)*this.speed; this.vy = (Math.random()-0.5)*this.speed; }
+                    }
+
+                    // 攻撃パターン
+                    this.attackCooldown -= dt;
+                    if (this.attackCooldown <= 0 && dist < 400) {
+                        this.attackCooldown = 0.8 + Math.random() * 0.6;
+                        // 3方向弾
+                        enemyProjectiles.push(new EnemyProjectile(this.x, this.y, angle, 250, this.color));
+                        enemyProjectiles.push(new EnemyProjectile(this.x, this.y, angle + 0.3, 250, this.color));
+                        enemyProjectiles.push(new EnemyProjectile(this.x, this.y, angle - 0.3, 250, this.color));
+                        // 全方位弾（30%確率）
+                        if (Math.random() < 0.3) {
+                            for(let i=0; i<8; i++) enemyProjectiles.push(new EnemyProjectile(this.x, this.y, (Math.PI/4)*i, 150, this.color));
+                        }
+                    }
+
+                    let nextX = this.x + this.vx * dt; let nextY = this.y + this.vy * dt;
+                    let canMove = true;
+                    let adjTiles = [
+                        getTileAt(nextX - 10, nextY - 10), getTileAt(nextX + 10, nextY - 10),
+                        getTileAt(nextX - 10, nextY + 10), getTileAt(nextX + 10, nextY + 10)
+                    ];
+                    if (adjTiles.some(t => [1,2,4,7,8,9,11].includes(t))) canMove = false;
+                    if (canMove) { this.x = nextX; this.y = nextY; }
+                }
+                else {
+                    if (this.type === 'golem') {
+                        if (this.state === 'idle' || this.state === 'chase') {
+                            if (dist < 150 && this.stateTimer <= 0) {
+                                this.state = 'prepare_attack'; this.stateTimer = 1.0; this.vx = 0; this.vy = 0;
+                            } else {
+                                this.state = 'chase';
+                                if (dist < 300) { this.vx = Math.cos(angle)*this.speed; this.vy = Math.sin(angle)*this.speed; }
+                                else { this.vx = 0; this.vy = 0; }
+                            }
+                        } else if (this.state === 'prepare_attack' && this.stateTimer <= 0) {
+                            this.state = 'attacking'; this.stateTimer = 0.5;
+                            this.vx = Math.cos(angle)*this.speed*4; this.vy = Math.sin(angle)*this.speed*4;
+                        } else if (this.state === 'attacking' && this.stateTimer <= 0) {
+                            this.state = 'cooldown'; this.stateTimer = 2.0; this.vx = 0; this.vy = 0;
+                        } else if (this.state === 'cooldown' && this.stateTimer <= 0) {
+                            this.state = 'idle';
+                        }
+                    } else if (this.type === 'guardian') {
+                        if (this.state === 'idle' || this.state === 'chase') {
+                            if (dist < 250 && this.stateTimer <= 0) {
+                                this.state = 'prepare_attack'; this.stateTimer = 0.8; this.vx = 0; this.vy = 0;
+                            } else {
+                                this.state = 'chase';
+                                if (dist < 300) { this.vx = Math.cos(angle)*this.speed; this.vy = Math.sin(angle)*this.speed; }
+                                else { this.vx = 0; this.vy = 0; }
+                            }
+                        } else if (this.state === 'prepare_attack' && this.stateTimer <= 0) {
+                            this.state = 'cooldown'; this.stateTimer = 2.0;
+                            enemyProjectiles.push(new EnemyProjectile(this.x, this.y, angle, 350, this.color));
+                            enemyProjectiles.push(new EnemyProjectile(this.x, this.y, angle + 0.15, 350, this.color));
+                            enemyProjectiles.push(new EnemyProjectile(this.x, this.y, angle - 0.15, 350, this.color));
+                        } else if (this.state === 'cooldown' && this.stateTimer <= 0) {
+                            this.state = 'idle';
+                        }
+                    } else if (this.type === 'mini_boss') {
+                        if (this.state === 'idle' || this.state === 'chase') {
+                            if (dist < 200 && this.stateTimer <= 0) {
+                                this.state = 'prepare_attack'; this.stateTimer = 0.6; this.vx = 0; this.vy = 0;
+                            } else {
+                                this.state = 'chase';
+                                if (dist < 400) { this.vx = Math.cos(angle)*this.speed; this.vy = Math.sin(angle)*this.speed; }
+                                else { this.vx = 0; this.vy = 0; }
+                            }
+                        } else if (this.state === 'prepare_attack' && this.stateTimer <= 0) {
+                            this.state = 'attacking'; this.stateTimer = 0.5;
+                            this.vx = Math.cos(angle)*this.speed*2.5; this.vy = Math.sin(angle)*this.speed*2.5;
+                            for(let i=0; i<4; i++) enemyProjectiles.push(new EnemyProjectile(this.x, this.y, (Math.PI/2)*i + angle, 150, this.color));
+                        } else if (this.state === 'attacking' && this.stateTimer <= 0) {
+                            this.state = 'cooldown'; this.stateTimer = 1.5; this.vx = 0; this.vy = 0;
+                        } else if (this.state === 'cooldown' && this.stateTimer <= 0) {
+                            this.state = 'idle';
+                        }
+                    } else {
+                        if (dist < 300) { this.vx = Math.cos(angle)*this.speed; this.vy = Math.sin(angle)*this.speed; } else { this.vx = 0; this.vy = 0; }
+                    }
+
+                    if (this.state !== 'prepare_attack') {
+                        let nextX = this.x + this.vx * dt; let nextY = this.y + this.vy * dt;
+                        let canMove = true;
+                        let adjTiles = [
+                            getTileAt(nextX - 10, nextY - 10), getTileAt(nextX + 10, nextY - 10),
+                            getTileAt(nextX - 10, nextY + 10), getTileAt(nextX + 10, nextY + 10)
+                        ];
+                        if (adjTiles.some(t => [1,2,4,7,8,9,11].includes(t))) canMove = false;
+                        if (canMove) { this.x = nextX; this.y = nextY; }
+                    }
+                }
+            }
+
+            render(ctx) {
+                if (this.isDead) {
+                    if (this.respawnTimer > 0 && this.respawnTimer <= 3.0) {
+                        ctx.save(); ctx.translate(this.spawnX, this.spawnY);
+                        ctx.strokeStyle = `rgba(239, 68, 68, ${(3.0 - this.respawnTimer)/3.0})`;
+                        ctx.lineWidth = 2; ctx.rotate(Date.now()*0.005);
+                        ctx.beginPath(); ctx.arc(0, 0, this.radius * 1.5, 0, Math.PI*2); ctx.stroke();
+                        ctx.beginPath(); ctx.moveTo(0, -this.radius*1.2); ctx.lineTo(this.radius*1.0, this.radius*0.6); ctx.lineTo(-this.radius*1.0, this.radius*0.6); ctx.closePath(); ctx.stroke();
+                        ctx.beginPath(); ctx.moveTo(0, this.radius*1.2); ctx.lineTo(this.radius*1.0, -this.radius*0.6); ctx.lineTo(-this.radius*1.0, -this.radius*0.6); ctx.closePath(); ctx.stroke();
+                        ctx.restore();
+                    }
+                    return;
+                }
+
+                if (this.type === 'slime' && imgSlime.complete && imgSlime.naturalWidth > 0) {
+                    ctx.save(); ctx.translate(this.x, this.y);
+                    if (this.state === 'prepare_attack') ctx.translate((Math.random()-0.5)*4, (Math.random()-0.5)*4);
+                    ctx.drawImage(imgSlime, -this.radius*1.3, -this.radius*1.3, this.radius*2.6, this.radius*2.6);
+                    ctx.restore();
+                } else {
+                    ctx.fillStyle = this.hitStun > 0 ? '#ffffff' : this.color; 
+                    ctx.shadowColor = this.color; ctx.shadowBlur = 10;
+                    ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
+                }
+                
+                // HPバーの描画（ボスやエリートのみ）
+                if (this.type === 'boss' || this.type === 'mini_boss') {
+                    const barW = this.radius * 2.5;
+                    const barH = 4;
+                    const hpRatio = Math.max(0, this.hp / this.maxHp);
+                    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(this.x - barW/2, this.y - this.radius - 12, barW, barH);
+                    ctx.fillStyle = this.type === 'boss' ? '#ef4444' : '#eab308'; ctx.fillRect(this.x - barW/2, this.y - this.radius - 12, barW * hpRatio, barH);
+                    // 名前表示
+                    ctx.font = 'bold 10px Noto Sans JP'; ctx.textAlign = 'center';
+                    ctx.fillStyle = '#fff';
+                    ctx.fillText(this.type === 'boss' ? '☠️ BOSS' : '⭐ ELITE', this.x, this.y - this.radius - 16);
+                }
+            }
+        }
+        class EnemyProjectile {
+            constructor(x, y, angle, speed, color) {
+                this.x = x; this.y = y; this.vx = Math.cos(angle)*speed; this.vy = Math.sin(angle)*speed;
+                this.life = 2.0; this.color = color; this.active = true;
+            }
+            move(dt) {
+                let nx = this.x + this.vx * dt;
+                let ny = this.y + this.vy * dt;
+                // コウモリ以外は壁に引っかかる（コウモリも壁は越えられない）
+                const tile = getTileAt(nx, ny);
+                if (tile === 1 || tile === 4 || tile === 8 || tile === 9 || tile === 7 || tile === 3) {
+                    const tx = getTileAt(nx, this.y);
+                    if (tx === 1 || tx === 4 || tx === 8 || tx === 9 || tx === 7 || tx === 3) nx = this.x;
+                    const ty = getTileAt(this.x, ny);
+                    if (ty === 1 || ty === 4 || ty === 8 || ty === 9 || ty === 7 || ty === 3) ny = this.y;
+                    
+                    // それでも壁に埋まっているなら移動しない（斜め等のエッジケース）
+                    if (getTileAt(nx, ny) === 1) { nx = this.x; ny = this.y; }
+                }
+                this.x = nx; this.y = ny;
+            }
+
+            update(dt) {
+                this.move(dt); this.life -= dt;
+                if (getTileAt(this.x, this.y) === 1) this.active = false;
+                if (this.active && Math.hypot(this.x - player.x, this.y - player.y) < COLLISION_RADIUS + 4) {
+                    player.hp -= 5; this.active = false;
+                    showToast("敵の攻撃を受けた！");
+                }
+            }
+            render(ctx) {
+                ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(this.x, this.y, 4, 0, Math.PI*2); ctx.fill();
+                ctx.shadowBlur = 10; ctx.shadowColor = this.color; ctx.fill(); ctx.shadowBlur = 0;
+            }
+        }
+        const enemyProjectiles = [];
+
+        class PlayerProjectile {
+            constructor(x, y, angle, speed, color, damage, pierce=false, status='') {
+                this.x = x; this.y = y; this.vx = Math.cos(angle)*speed; this.vy = Math.sin(angle)*speed;
+                this.life = 1.5; this.color = color; this.active = true; this.damage = damage;
+                this.pierce = pierce; this.status = status; this.hitEnemies = [];
+            }
+            update(dt) {
+                this.x += this.vx * dt; this.y += this.vy * dt; this.life -= dt;
+                if (getTileAt(this.x, this.y) === 1) this.active = false;
+                if (this.active) {
+                    enemies.forEach(enemy => {
+                        if (enemy.isAlive && this.active && !this.hitEnemies.includes(enemy) && Math.hypot(this.x - enemy.x, this.y - enemy.y) < enemy.radius + 8) {
+                            applyDamageToEnemy(enemy, this.damage);
+                            if (this.status === 'poison') { enemy.speed *= 0.5; setTimeout(()=>enemy.speed*=2.0, 3000); } // 鈍足
+                            this.hitEnemies.push(enemy);
+                            if (!this.pierce) this.active = false;
+                            for(let i=0; i<5; i++) damageParticles.push({ x: this.x, y: this.y, vx: (Math.random()-0.5)*100, vy: (Math.random()-0.5)*100, life: 0.2, color: this.color });
+                        }
+                    });
+                }
+            }
+            render(ctx) {
+                ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(this.x, this.y, this.pierce?10:6, 0, Math.PI*2); ctx.fill();
+                ctx.shadowBlur = 10; ctx.shadowColor = this.color; ctx.fill(); ctx.shadowBlur = 0;
+            }
+        }
+        const playerProjectiles = [];
+
+        function loadScene(id, spawnC, spawnR) {
+            currentSceneId = id; currentScene = sceneData[id];
+            currentSpawnC = spawnC; currentSpawnR = spawnR;
+            MAP_COLS = currentScene.width; MAP_ROWS = currentScene.height;
+            map = [];
+            for (let r = 0; r < MAP_ROWS; r++) {
+                const row = [];
+                for (let c = 0; c < MAP_COLS; c++) {
+                    const char = currentScene.tiles[r][c];
+                    if (char === 'a' || char === 'v' || char === 'w') row.push(char);
+                    else row.push(parseInt(char, 36));
+                }
+                map.push(row);
+            }
+            npcs = currentScene.npcs.map(n => ({ ...n, x: (n.c+0.5)*TILE_SIZE, y: (n.r+0.5)*TILE_SIZE }));
+            enemies = currentScene.enemies.map(e => new Enemy(e.c, e.r, e.type));
+            chests = currentScene.chests.map(c => ({ ...c, x: (c.c+0.5)*TILE_SIZE, y: (c.r+0.5)*TILE_SIZE }));
+            
+            enemyProjectiles.length = 0;
+            playerProjectiles.length = 0;
+            swordSlashes.length = 0;
+            damageParticles.length = 0;
+            pushBlocks.length = 0;
+            bossCrystals.length = 0;
+            
+            // ボスのクリスタルバリアは廃止（ボスは直接戦闘のみ）
+
+            player.x = (spawnC + 0.5) * TILE_SIZE;
+            player.y = (spawnR + 0.5) * TILE_SIZE;
+            camera.x = player.x; camera.y = player.y;
+
+            // --- ポータルの強制初期化と定義 ---
+            currentScene.portals = [];
+            if (id === 'city') {
+                currentScene.portals.push({ c: 25, r: 20, dest: 'guild', sc: 10, sr: 13 });
+                currentScene.portals.push({ c: 75, r: 30, dest: 'dungeon_f1', sc: 40, sr: 74 });
+            } else if (id === 'guild') {
+                currentScene.portals.push({ c: 10, r: 14, dest: 'city', sc: 25, sr: 21 });
+                currentScene.portals.push({ c: 9, r: 14, dest: 'city', sc: 25, sr: 21 });
+                currentScene.portals.push({ c: 11, r: 14, dest: 'city', sc: 25, sr: 21 });
+            } else if (id.startsWith('dungeon_f')) {
+                // 各階層のスタート地点に街へ戻るポータルを設置
+                currentScene.portals.push({ c: spawnC, r: spawnR, dest: 'city', sc: 74, sr: 30 });
+                currentScene.portals.push({ c: spawnC - 1, r: spawnR, dest: 'city', sc: 74, sr: 30 });
+                currentScene.portals.push({ c: spawnC + 1, r: spawnR, dest: 'city', sc: 74, sr: 30 });
+                currentScene.portals.push({ c: spawnC, r: spawnR + 1, dest: 'city', sc: 74, sr: 30 });
+                // スポーン地点にポータルタイルを描画
+                if (map[spawnR] && map[spawnR][spawnC] !== undefined) {
+                    map[spawnR][spawnC] = 12;
+                    if (map[spawnR][spawnC-1] !== undefined) map[spawnR][spawnC-1] = 12;
+                    if (map[spawnR][spawnC+1] !== undefined) map[spawnR][spawnC+1] = 12;
+                    if (map[spawnR+1] && map[spawnR+1][spawnC] !== undefined) map[spawnR+1][spawnC] = 12;
+                }
+            }
+
+            // 各ダンジョン階層にエリートモンスター（mini_boss）を追加配置
+            if (id.startsWith('dungeon_f')) {
+                const floorNum = parseInt(id.split('_f')[1]) || 1;
+                const eliteCount = Math.min(2 + floorNum, 8); // 階層が深いほど多く
+                for (let i = 0; i < eliteCount; i++) {
+                    // マップ内のランダムな床タイルにエリートを配置
+                    let ec, er, attempts = 0;
+                    do {
+                        ec = Math.floor(Math.random() * (MAP_COLS - 10)) + 5;
+                        er = Math.floor(Math.random() * (MAP_ROWS - 10)) + 5;
+                        attempts++;
+                    } while (attempts < 100 && map[er] && map[er][ec] !== 0);
+                    if (attempts < 100) {
+                        enemies.push(new Enemy(ec, er, 'mini_boss'));
+                    }
+                }
+            }
+
+            
+            showToast(currentScene.getTheme().name + " に移動しました");
+        }
+
+        const dialogues = {
+            'guide': [
+                "🤕 おい、大丈夫か？ こんな浅層で倒れているとはな...",
+                "🌀 記憶がないのか？ ここは『アビス』と呼ばれる巨大な迷宮だ。",
+                "⚔️ とりあえず、まずはこの辺りのスライムを狩って勘を取り戻せ。",
+                "🎮 I, O, K, L キーのスキルを使って戦うんだ。Jで通常攻撃だ。",
+                "✨ 準備ができたら奥へ進もう。さらなる深層を目指すんだ！"
+            ],
+            'guildmaster': [
+                "🍻 よく来たな、冒険者よ。私はギルドマスターだ。",
+                "🏰 ここは『迷宮都市アビス・エッジ』。",
+                "💎 アビスの恵みによって栄え、そして呪われた街だ。",
+                "🗺️ 準備ができたら、南のポータルからダンジョンへ向かえ。",
+                "🔥 健闘を祈る！"
+            ]
+        };
+        let dialogueState = { active: false, lines: [], lineIdx: 0, charIdx: 0, timer: 0 };
+        const drops = []; const swordSlashes = []; const damageParticles = [];
+        const pushBlocks = []; const bossCrystals = [];
+
+        function getTileAt(x, y) {
+            const col = Math.floor(x / TILE_SIZE), row = Math.floor(y / TILE_SIZE);
+            if (col < 0 || col >= MAP_COLS || row < 0 || row >= MAP_ROWS) return 1;
+            return map[row][col];
+        }
+
+        function showToast(text) { toast.textContent = text; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 2000); }
+
+        function openCooking() {
+            if (player.state === PlayerState.DIALOGUE) return;
+            document.getElementById('cookingModal').classList.add('open');
+            player.state = PlayerState.DIALOGUE; player.vx = 0; player.vy = 0;
+        }
+        function closeCooking() {
+            document.getElementById('cookingModal').classList.remove('open');
+            if(player.state === PlayerState.DIALOGUE && !dialogueState.active) player.state = PlayerState.IDLE;
+        }
+        function cookFood(type) {
+            let inv = player.inventory;
+            if(type === 'jelly') {
+                if((inv['スライムの粘液'] || 0) >= 3) { inv['スライムの粘液'] -= 3; player.foodBuffs.maxHp += 20; player.maxHp += 20; player.hp += 20; showToast("🍲 スライムゼリーを食べた！最大HP+20"); }
+                else { showToast("素材が足りません！"); return; }
+            } else if(type === 'soup') {
+                if((inv['風の結晶'] || 0) >= 2) { inv['風の結晶'] -= 2; player.foodBuffs.spd += 30; player.spd += 30; showToast("🍲 風のスープを食べた！SPD+30"); }
+                else { showToast("素材が足りません！"); return; }
+            } else if(type === 'skewer') {
+                if((inv['鉄くず'] || 0) >= 2 && (inv['スライムの粘液'] || 0) >= 1) { inv['鉄くず'] -= 2; inv['スライムの粘液'] -= 1; player.foodBuffs.def += 3; player.def += 3; showToast("🍲 鉄壁の串焼きを食べた！DEF+3"); }
+                else { showToast("素材が足りません！"); return; }
+            }
+            updateHUD(); closeCooking();
+        }
+
+        function openMainMenu() {
+            if (player.state === PlayerState.DIALOGUE && !document.getElementById('mainMenuOverlay').classList.contains('open')) return;
+            document.getElementById('mainMenuOverlay').classList.add('open');
+            player.state = PlayerState.DIALOGUE; player.vx = 0; player.vy = 0;
+            updateMenu();
+        }
+        function closeMainMenu() {
+            document.getElementById('mainMenuOverlay').classList.remove('open');
+            if (player.state === PlayerState.DIALOGUE && !dialogueState.active) player.state = PlayerState.IDLE;
+        }
+
+        function updateMenu() {
+            const s = souls[player.currentSoulId];
+            document.getElementById('menuSoulName').textContent = s.icon + ' ' + s.name;
+            document.getElementById('menuLv').textContent = player.level;
+            document.getElementById('menuHp').textContent = `${Math.floor(player.hp)} / ${Math.floor(player.maxHp)}`;
+            document.getElementById('menuMp').textContent = `${Math.floor(player.mp)} / ${Math.floor(player.maxMp)}`;
+            document.getElementById('menuAtk').textContent = player.atk;
+            document.getElementById('menuDef').textContent = player.def;
+            document.getElementById('menuSpd').textContent = player.spd;
+            document.getElementById('menuGold').textContent = player.gold + " G";
+            
+            let keysObj = [];
+            if(player.keys.start) keysObj.push("青の鍵");
+            if(player.keys.forest) keysObj.push("緑の鍵");
+            if(player.keys.crystal) keysObj.push("紫の鍵");
+            if(player.keys.temple) keysObj.push("赤の鍵");
+            document.getElementById('menuKeys').textContent = keysObj.length > 0 ? keysObj.join(", ") : "なし";
+            
+            let invHtml = '';
+            for(let item in player.inventory) {
+                if(item !== '記憶の欠片' && player.inventory[item] > 0) {
+                    invHtml += `<div class="inv-item"><span style="color:#e2e8f0;">${item}</span><span style="color:#94a3b8;">x ${player.inventory[item]}</span></div>`;
+                }
+            }
+            if(invHtml === '') invHtml = '<div style="color:#64748b; text-align:center; padding:10px;">アイテムがありません</div>';
+            document.getElementById('menuInventoryList').innerHTML = invHtml;
+
+            let skillsHtml = '';
+            for(let k in player.skills) {
+                const sk = player.skills[k];
+                skillsHtml += `<div class="skill-box" style="flex-direction:row; justify-content:space-between; width:100%; margin-bottom:5px; background:rgba(0,0,0,0.5);">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <span class="skill-key" style="margin:0;">${k}</span>
+                        <span class="skill-name" style="font-size:0.8rem; color:#fff;">${sk.name}</span>
+                    </div>
+                    <span style="font-size:0.7rem; color:#94a3b8;">MP: ${sk.mp} / CD: ${sk.maxCd}s</span>
+                </div>`;
+            }
+            document.getElementById('menuSkills').innerHTML = skillsHtml;
+        }
+
+        function openSoulDrive() {
+            if (player.state === PlayerState.DIALOGUE && !document.getElementById('soulDriveModal').classList.contains('open')) return;
+            document.getElementById('soulDriveModal').classList.add('open');
+            player.state = PlayerState.DIALOGUE; player.vx = 0; player.vy = 0;
+            
+            document.getElementById('memoryShardCount').textContent = player.inventory['記憶の欠片'] || 0;
+            
+            let html = '';
+            for(let id in souls) {
+                const s = souls[id];
+                if(s.unlocked) {
+                    html += `<div class="shop-item" style="cursor:pointer;" onclick="switchSoul('${id}')">
+                        <div style="display:flex; flex-direction:column;"><span style="font-weight:700;">${s.icon} ${s.name} (Lv.${s.level})</span><span style="font-size:0.7rem; color:#94a3b8;">HP:${s.maxHp} ATK:${s.atk} SPD:${s.spd}</span></div>
+                        <button class="buy-btn" style="background:var(--accent-purple);">同期</button>
+                    </div>`;
+                } else {
+                    html += `<div class="shop-item" style="opacity:0.4;">
+                        <div style="display:flex; flex-direction:column;"><span style="font-weight:700;">❓ 未解析のソウル</span><span style="font-size:0.7rem; color:#94a3b8;">『記憶の欠片』が不足しています</span></div>
+                    </div>`;
+                }
+            }
+            document.getElementById('soulList').innerHTML = html;
+        }
+
+        function closeSoulDrive() {
+            document.getElementById('soulDriveModal').classList.remove('open');
+            if(player.state === PlayerState.DIALOGUE && !dialogueState.active) player.state = PlayerState.IDLE;
+        }
+
+        const visions = [
+            { text: "【アレスの記憶】\n「俺が盾になる。お前は……生きて未来を掴め！」\n\n✨パッシブ獲得: 全ソウルの最大HP +10", apply: () => { for(let k in souls) souls[k].maxHp += 10; player.hp += 10; player.maxHp += 10; } },
+            { text: "【リリスの記憶】\n「虚無の力は危険よ……でも、私なら制御できるはず……！」\n\n✨パッシブ獲得: 全ソウルのATK +3", apply: () => { for(let k in souls) souls[k].atk += 3; player.atk += 3; } },
+            { text: "【シアンの記憶】\n「運命なんて糞食らえだ！ 俺たちの自由は誰にも渡さねぇ！」\n\n✨パッシブ獲得: 全ソウルのSPD +15", apply: () => { for(let k in souls) souls[k].spd += 15; player.spd += 15; } },
+            { text: "【魔導騎士の誓い】\n「我ら共鳴者、命尽きるともこの世界を護り抜かん」\n\n✨ リリス(魔法使い)のソウルがアンロックされた！", apply: () => { souls['Lilith'].unlocked = true; } }
+        ];
+        let currentVisionIndex = 0;
+
+        function restoreVision() {
+            if ((player.inventory['記憶の欠片'] || 0) <= 0) { showToast("『記憶の欠片』が足りません。ボスを討伐しましょう。"); return; }
+            if (currentVisionIndex >= visions.length) { showToast("すべてのビジョンを復元しました。"); return; }
+            
+            player.inventory['記憶の欠片']--;
+            const v = visions[currentVisionIndex]; currentVisionIndex++;
+            v.apply();
+            
+            closeSoulDrive();
+            dialogueState = { active: true, lines: [v.text], lineIdx: 0, charIdx: 0, timer: 0 };
+            document.getElementById('dialogueName').textContent = "ソウル・ドライブ / ビジョン復元"; 
+            document.getElementById('dialogueText').textContent = ""; 
+            document.getElementById('dialogueOverlay').classList.add('show');
+            player.state = PlayerState.DIALOGUE; player.vx = 0; player.vy = 0;
+            updateHUD();
+        }
+
+        function switchSoul(soulId) {
+            if(!souls[soulId] || !souls[soulId].unlocked) return;
+            const hpRatio = player.hp / player.maxHp;
+            const mpRatio = player.mp / player.maxMp;
+            
+            // 現在のソウルのデータを保存
+            souls[player.currentSoulId].level = player.level;
+            souls[player.currentSoulId].xp = player.xp;
+            souls[player.currentSoulId].xpNeeded = player.xpNeeded;
+            
+            // 新しいソウルのデータをロード
+            player.currentSoulId = soulId;
+            const s = souls[soulId];
+            recalculateStats();
+            player.hp = Math.max(1, player.maxHp * hpRatio); player.mp = player.maxMp * mpRatio;
+            
+            document.getElementById('currentSoulName').textContent = s.icon + ' ' + s.name;
+            
+            closeSoulDrive();
+            showToast(`🔄 ソウル・ドライブ: ${s.name} に同期しました！`);
+            updateHUD();
+        }
+
+        function openShop() { 
+            if (player.state === PlayerState.DIALOGUE) return;
+            document.getElementById('shopGoldDisplay').textContent = `${player.gold} G`; 
+            document.getElementById('shopModal').classList.add('open'); 
+            player.state = PlayerState.DIALOGUE; player.vx = 0; player.vy = 0;
+        }
+        function closeShop() { 
+            document.getElementById('shopModal').classList.remove('open'); 
+            if (player.state === PlayerState.DIALOGUE && !dialogueState.active) player.state = PlayerState.IDLE;
+        }
+        function buyItem(type, price) {
+            if (player.gold < price) { showToast("ゴールドが足りません！"); return; }
+            if (type === 'hp') { player.gold -= price; souls[player.currentSoulId].maxHp += 20; recalculateStats(); player.hp = player.maxHp; }
+            else if (type === 'hover') {
+                if (player.hasHoverAbility) return;
+                player.gold -= price; player.hasHoverAbility = true;
+                showToast("ホバー能力は現在準備中です！"); return;
+            }
+            updateHUD(); closeShop(); showToast("強化完了！");
+        }
+
+        window.addEventListener('keydown', e => {
+            if (e.key === 'Tab') e.preventDefault();
+            const key = e.key.toLowerCase(); keys[key] = true;
+
+            if (key === 'tab') {
+                if (document.getElementById('mainMenuOverlay').classList.contains('open')) { closeMainMenu(); return; }
+                else if (player.state !== PlayerState.DIALOGUE) { openMainMenu(); return; }
+            }
+            
+            if (key === 'f') {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(err => {
+                        console.log(`Fullscreen error: ${err.message}`);
+                    });
+                } else {
+                    document.exitFullscreen();
+                }
+                return;
+            }
+            if (key === 'escape') {
+                if (document.getElementById('mainMenuOverlay').classList.contains('open')) closeMainMenu();
+                if (document.getElementById('soulDriveModal').classList.contains('open')) closeSoulDrive();
+                if (document.getElementById('shopModal').classList.contains('open')) closeShop();
+                if (document.getElementById('cookingModal').classList.contains('open')) closeCooking();
+                return;
+            }
+
+            if (key === ' ' && player.state === PlayerState.DIALOGUE && dialogueState.active) {
+                const currentLine = dialogueState.lines[dialogueState.lineIdx];
+                if (dialogueState.charIdx < currentLine.length) { dialogueState.charIdx = currentLine.length; document.getElementById('dialogueText').textContent = currentLine; }
+                else {
+                    dialogueState.lineIdx++; dialogueState.charIdx = 0;
+                    if (dialogueState.lineIdx >= dialogueState.lines.length) {
+                        dialogueState.active = false; player.state = PlayerState.IDLE; document.getElementById('dialogueOverlay').classList.remove('show');
+                        document.getElementById('questText').textContent = "クエスト: 会話が完了した。宝箱から鍵を探せ！";
+                    }
+                }
+                return;
+            }
+            if (key === 'c') {
+                if (document.getElementById('soulDriveModal').classList.contains('open')) { closeSoulDrive(); return; }
+                else if (player.state !== PlayerState.DIALOGUE) { openSoulDrive(); return; }
+            }
+            if (player.state === PlayerState.DIALOGUE) return;
+
+            if (key === 'e') triggerInteract();
+            if (key === 'k' || key === 'i' || key === 'o' || key === 'l') useSkill(key);
+            if (key === ' ') { e.preventDefault(); useSkill('k'); } // Space is Dodge(K)
+            if (key === 'j') { player.isAttacking = true; triggerAttack(); }
+        });
+        window.addEventListener('keyup', e => { 
+            keys[e.key.toLowerCase()] = false; 
+            if(e.key.toLowerCase() === 'j') {
+                player.isAttacking = false;
+                if(player.currentSoulId === 'Lilith' && player.chargeTimer > 1.0) {
+                    playerProjectiles.push(new PlayerProjectile(player.x, player.y, player.angle, 600, '#ef4444', player.atk * 3, true));
+                    showToast("💥 マナ・シュート(貫通)！");
+                }
+                player.chargeTimer = 0;
+            }
+        });
+
+        function useSkill(key) {
+            if(player.state === PlayerState.DIALOGUE) return;
+
+            if (key === 'l') {
+                if (player.ultGauge < 100) { showToast("ゲージが足りません！"); return; }
+                player.ultGauge = 0;
+                showToast("✨ 覚醒必殺技発動！");
+                if (player.currentSoulId === 'Ares') {
+                    // グランドバスター
+                    player.state = PlayerState.ATTACK; player.attackTimer = 1.0;
+                    for(let i=0; i<16; i++) swordSlashes.push({ x: player.x + Math.cos((Math.PI*2/16)*i)*100, y: player.y + Math.sin((Math.PI*2/16)*i)*100, life: 0.8, angle: (Math.PI*2/16)*i });
+                    enemies.forEach(e => { if(e.isAlive && Math.hypot(e.x-player.x, e.y-player.y) < 250) { applyDamageToEnemy(e, player.atk * 10); e.hitStun = 2.0; e.vx = Math.cos(player.angle)*500; e.vy = Math.sin(player.angle)*500; } });
+                    enemyProjectiles.length = 0; // かき消す
+                } else if (player.currentSoulId === 'Cyan') {
+                    // ファントムダンス
+                    player.state = PlayerState.DASH; player.dashTimer = 2.0;
+                    enemies.forEach(e => { if(e.isAlive && Math.hypot(e.x-player.x, e.y-player.y) < 300) { applyDamageToEnemy(e, player.atk * 15); e.hitStun = 2.5; } });
+                } else if (player.currentSoulId === 'Lilith') {
+                    // アビスフレア (極太レーザー)
+                    player.state = PlayerState.ATTACK; player.attackTimer = 3.0;
+                    let laserInterval = setInterval(() => {
+                        if(player.attackTimer <= 0) { clearInterval(laserInterval); return; }
+                        for(let i=0; i<10; i++) {
+                            let tx = player.x + Math.cos(player.angle)*(i*40); let ty = player.y + Math.sin(player.angle)*(i*40);
+                            for(let j=0; j<3; j++) damageParticles.push({x:tx, y:ty, vx:0, vy:0, life:0.1, color:'#ef4444'});
+                        }
+                        enemies.forEach(e => { if(e.isAlive) {
+                            let ex = e.x - player.x, ey = e.y - player.y;
+                            let dot = ex*Math.cos(player.angle) + ey*Math.sin(player.angle);
+                            let dist = Math.abs(ex*Math.sin(player.angle) - ey*Math.cos(player.angle));
+                            if (dot > 0 && dot < 500 && dist < 40) applyDamageToEnemy(e, player.atk * 0.5);
+                        }});
+                    }, 100);
+                }
+                updateHUD();
+                return;
+            }
+
+            // K, I, O keys
+            if (key === 'k') {
+                if (player.sp < 20 && player.currentSoulId === 'Ares') { showToast("SP不足！"); return; }
+                if (player.sp < 10 && player.currentSoulId === 'Cyan') { showToast("SP不足！"); return; }
+                if (player.sp < 30 && player.currentSoulId === 'Lilith') { showToast("SP不足！"); return; }
+                
+                if (player.currentSoulId === 'Ares') {
+                    player.sp -= 20; player.state = PlayerState.DASH; player.dashTimer = 0.3;
+                    player.vx = Math.cos(player.angle)*500; player.vy = Math.sin(player.angle)*500;
+                    showToast("🛡️ シールド・バッシュ！");
+                    enemies.forEach(e => { if(e.isAlive && Math.hypot(e.x-player.x, e.y-player.y) < 60) { applyDamageToEnemy(e, player.atk); e.hitStun = 1.5; } });
+                    for(let i=enemyProjectiles.length-1; i>=0; i--) {
+                        let p = enemyProjectiles[i]; if(Math.hypot(p.x-player.x, p.y-player.y) < 60) enemyProjectiles.splice(i,1);
+                    }
+                } else if (player.currentSoulId === 'Cyan') {
+                    player.sp -= 10; player.state = PlayerState.DASH; player.dashTimer = 0.15;
+                    player.vx = Math.cos(player.angle)*1200; player.vy = Math.sin(player.angle)*1200; // すり抜け用超高速
+                    showToast("💨 シャドウ・ステップ！");
+                } else if (player.currentSoulId === 'Lilith') {
+                    player.sp -= 30; player.state = PlayerState.DASH; player.dashTimer = 0.1;
+                    player.x += Math.cos(player.angle)*150; player.y += Math.sin(player.angle)*150; // ワープ
+                    showToast("✨ フェイズ・シフト！");
+                }
+            } else if (key === 'i') {
+                if (player.mp < 15 && player.currentSoulId === 'Ares') { showToast("MP不足！"); return; }
+                if (player.mp < 10 && player.currentSoulId === 'Cyan') { showToast("MP不足！"); return; }
+                if (player.mp < 25 && player.currentSoulId === 'Lilith') { showToast("MP不足！"); return; }
+                
+                if (player.currentSoulId === 'Ares') {
+                    player.mp -= 15; player.state = PlayerState.ATTACK; player.attackTimer = 3.0; // 3秒回転
+                    let spinInterval = setInterval(() => {
+                        if(player.attackTimer <= 0) { clearInterval(spinInterval); return; }
+                        swordSlashes.push({ x: player.x + Math.cos(Date.now()*0.01)*40, y: player.y + Math.sin(Date.now()*0.01)*40, life: 0.1, angle: Date.now()*0.01 });
+                        enemies.forEach(e => { if(e.isAlive && Math.hypot(e.x-player.x, e.y-player.y) < 60) { applyDamageToEnemy(e, player.atk*0.5); } });
+                    }, 100);
+                    showToast("🌪️ グランド・スピン！");
+                } else if (player.currentSoulId === 'Cyan') {
+                    player.mp -= 10; player.state = PlayerState.ATTACK; player.attackTimer = 0.2;
+                    playerProjectiles.push(new PlayerProjectile(player.x, player.y, player.angle, 400, '#22c55e', player.atk*0.8, false, 'poison'));
+                    playerProjectiles.push(new PlayerProjectile(player.x, player.y, player.angle+0.2, 400, '#22c55e', player.atk*0.8, false, 'poison'));
+                    playerProjectiles.push(new PlayerProjectile(player.x, player.y, player.angle-0.2, 400, '#22c55e', player.atk*0.8, false, 'poison'));
+                    showToast("☠️ 毒牙の投擲！");
+                } else if (player.currentSoulId === 'Lilith') {
+                    player.mp -= 25; player.state = PlayerState.ATTACK; player.attackTimer = 0.5;
+                    for(let j=0; j<16; j++) damageParticles.push({x:player.x, y:player.y, vx:Math.cos(j)*200, vy:Math.sin(j)*200, life:0.5, color:'#38bdf8'});
+                    enemies.forEach(e => { if(e.isAlive && Math.hypot(e.x-player.x, e.y-player.y) < 150) { applyDamageToEnemy(e, player.atk*1.2); e.hitStun = 2.0; e.vx=0; e.vy=0; } });
+                    showToast("❄️ フロスト・ノヴァ！");
+                }
+            } else if (key === 'o') {
+                if (player.mp < 20 && player.currentSoulId === 'Ares') { showToast("MP不足！"); return; }
+                if (player.mp < 15 && player.currentSoulId === 'Cyan') { showToast("MP不足！"); return; }
+                if (player.mp < 20 && player.currentSoulId === 'Lilith') { showToast("MP不足！"); return; }
+                
+                if (player.currentSoulId === 'Ares') {
+                    player.mp -= 20; player.state = PlayerState.ATTACK; player.attackTimer = 0.5;
+                    player.def += 20; setTimeout(() => player.def -= 20, 10000);
+                    showToast("🦁 ウォークライ！");
+                    enemies.forEach(e => { if(e.isAlive && Math.hypot(e.x-player.x, e.y-player.y) < 300) { e.hitStun = 1.0; e.state = 'chase'; } }); // ヘイト集め
+                } else if (player.currentSoulId === 'Cyan') {
+                    player.mp -= 15; player.state = PlayerState.ATTACK; player.attackTimer = 0.2;
+                    showToast("💨 スモーク・デコイ！");
+                    // 簡易デコイ生成（エフェクトのみで、敵は一時的にそこに引き寄せられる）
+                    let decoyX = player.x, decoyY = player.y;
+                    let decoyInterval = setInterval(() => {
+                        for(let i=0; i<3; i++) damageParticles.push({x:decoyX, y:decoyY, vx:(Math.random()-0.5)*50, vy:(Math.random()-0.5)*50, life:0.3, color:'#94a3b8'});
+                        enemies.forEach(e => { if(e.isAlive && Math.hypot(e.x-decoyX, e.y-decoyY) < 300) { e.vx = (decoyX-e.x)*0.5; e.vy = (decoyY-e.y)*0.5; } });
+                    }, 100);
+                    setTimeout(() => clearInterval(decoyInterval), 5000);
+                } else if (player.currentSoulId === 'Lilith') {
+                    player.mp -= 20; player.state = PlayerState.ATTACK; player.attackTimer = 0.5;
+                    showToast("⚡ チェイン・ライトニング！");
+                    let hitEnemies = [];
+                    let currX = player.x, currY = player.y;
+                    for(let k=0; k<5; k++) {
+                        let target = enemies.find(e => e.isAlive && !hitEnemies.includes(e) && Math.hypot(e.x-currX, e.y-currY) < 200);
+                        if(target) {
+                            applyDamageToEnemy(target, player.atk * 1.5);
+                            hitEnemies.push(target);
+                            // 雷エフェクト
+                            for(let j=0; j<5; j++) damageParticles.push({x:(currX+target.x)/2 + (Math.random()-0.5)*20, y:(currY+target.y)/2 + (Math.random()-0.5)*20, vx:0, vy:0, life:0.2, color:'#fef08a'});
+                            currX = target.x; currY = target.y;
+                        } else break;
+                    }
+                }
+            }
+            updateHUD();
+        }
+
+        function triggerInteract() {
+
+        // ギルド受付嬢（ギルド内NPC「receptionist」の近くで [E]）
+        if (currentSceneId === 'guild') {
+            const receptionist = npcs.find(n => n.id === 'guildmaster' || Math.hypot(n.x - player.x, n.y - player.y) < 80);
+            if (receptionist && player.y < 10 * TILE_SIZE) {
+                player.state = PlayerState.DIALOGUE; player.vx = 0; player.vy = 0;
+                const qb = document.getElementById('questBoardOverlay');
+                const ql = document.getElementById('questList');
+                qb.style.display = 'block';
+                
+                const quests = [
+                    { id: 1, name: 'スライム討伐', target: 'slime', req: 5, reward: 100, desc: '街の周辺にいるスライムを5匹倒してきてください。' },
+                    { id: 2, name: 'コウモリ駆除', target: 'bat', req: 8, reward: 150, desc: '洞窟のコウモリが厄介です。8匹駆除をお願いします。' },
+                    { id: 3, name: 'スケルトン討伐', target: 'skeleton', req: 5, reward: 200, desc: 'アンデッドがうろついています。スケルトンを5体討伐してください。' },
+                    { id: 4, name: '素材納品（鉄くず）', target: '鉄くず', req: 3, reward: 300, desc: '鍛冶屋で使う鉄くずを3つ集めてきてください。' },
+                    { id: 5, name: 'ボス討伐', target: 'boss', req: 1, reward: 1000, desc: 'ダンジョン深部のボスを討伐してください！' },
+                    { id: 6, name: 'ゴーレム殲滅', target: 'golem', req: 3, reward: 250, desc: '硬い岩の魔物ゴーレムを3体破壊してください。' },
+                    { id: 7, name: '風スライム駆除', target: 'wind_slime', req: 6, reward: 200, desc: '素早い風スライムを6匹駆除してください。' },
+                    { id: 8, name: 'ガーディアン撃退', target: 'guardian', req: 4, reward: 180, desc: '遺跡のガーディアンを4体機能停止させてください。' },
+                    { id: 9, name: '素材納品（骨のかけら）', target: '骨のかけら', req: 5, reward: 250, desc: 'スケルトンが落とす骨のかけらを5つ納品してください。' },
+                    { id: 10, name: '大量討伐（スライム）', target: 'slime', req: 15, reward: 400, desc: 'スライムが大量発生しています。15匹討伐をお願いします。' }
+                ];
+
+                window.acceptQuest = function(qId) {
+                    player.activeQuest = quests.find(q => q.id === qId);
+                    player.questProgress = 0;
+                    showToast(`📋 クエスト『${player.activeQuest.name}』を受注しました！`);
+                    document.getElementById('questBoardOverlay').style.display='none';
+                    player.state = PlayerState.IDLE;
+                    updateHUD();
+                };
+
+                if (!player.activeQuest) {
+                    let html = "<p>いらっしゃいませ、冒険者様。受注するクエストを選んでください。</p><hr style='border-color:#444; margin:10px 0;'>";
+                    quests.forEach(q => {
+                        html += `<div style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 5px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <h4 style="color:#4ade80; margin:0 0 5px 0;">${q.name}</h4>
+                                <p style="margin:0; font-size:12px; color:#ddd;">目的: ${q.req}回/個 | 報酬: ${q.reward}G<br>${q.desc}</p>
+                            </div>
+                            <button onclick="acceptQuest(${q.id})" style="padding: 5px 15px; background: #3b82f6; color: white; border: none; border-radius: 5px; cursor: pointer;">受注</button>
+                        </div>`;
+                    });
+                    ql.innerHTML = html;
+                } else {
+                    let isComplete = false;
+                    if (['鉄くず','骨のかけら','スライムの粘液','風の結晶','魔法の石板'].includes(player.activeQuest.target)) {
+                        if ((player.inventory[player.activeQuest.target]||0) >= player.activeQuest.req) {
+                            player.inventory[player.activeQuest.target] -= player.activeQuest.req;
+                            isComplete = true;
+                        }
+                    } else if (player.questProgress >= player.activeQuest.req) {
+                        isComplete = true;
+                    }
+                    
+                    if (isComplete) {
+                        player.gold += player.activeQuest.reward;
+                        ql.innerHTML = "<p>お帰りなさいませ！依頼の達成、確認いたしました。</p><h3 style='color:#fcd34d'>クエスト完了です！お疲れ様でした。</h3><br>報酬として <b>" + player.activeQuest.reward + "G</b> をお渡しします。";
+                        player.activeQuest = null; player.questProgress = 0;
+                        updateHUD();
+                    } else {
+                        let prog = player.questProgress;
+                        if (['鉄くず','骨のかけら','スライムの粘液','風の結晶','魔法の石板'].includes(player.activeQuest.target)) {
+                            prog = player.inventory[player.activeQuest.target] || 0;
+                        }
+                        ql.innerHTML = "<p>いつもお疲れ様です。</p><h3 style='color:#fff'>現在進行中のクエスト状況です</h3><br>📋 目的: <b>" + player.activeQuest.name + "</b><br>🎯 進行度: <b>" + prog + " / " + player.activeQuest.req + "</b><br><br><p style='font-size:14px; color:#aaa'>無理せず頑張ってくださいね！</p>";
+                        ql.innerHTML += `<br><button onclick="player.activeQuest=null;player.questProgress=0;document.getElementById('questBoardOverlay').style.display='none';player.state=PlayerState.IDLE;showToast('クエストを破棄しました');updateHUD();" style="padding: 5px 15px; background: #555; color: white; border: none; border-radius: 5px; cursor: pointer;">クエストを破棄する</button>`;
+                    }
+                }
+                return;
+            }
+        }
+
+
+        // 鍛冶屋（街のNPC「blacksmith_master」に話しかけるか、鍛冶屋タイル付近で [E]）
+        if (currentSceneId === 'city') {
+            const blacksmith = npcs.find(n => n.id === 'blacksmith_master' && Math.hypot(n.x - player.x, n.y - player.y) < 80);
+            const nearForge = getTileAt(player.x, player.y - 20) === 14 || getTileAt(player.x, player.y + 20) === 14 || getTileAt(player.x - 20, player.y) === 14 || getTileAt(player.x + 20, player.y) === 14;
+            if (blacksmith || nearForge) {
+                player.state = PlayerState.DIALOGUE; player.vx = 0; player.vy = 0;
+                const fo = document.getElementById('forgeOverlay');
+                const fs = document.getElementById('forgeStatus');
+                const btn = document.getElementById('btnUpgrade');
+                fo.style.display = 'block';
+                
+                const updateForgeUI = () => {
+                    let cost = player.weaponLevel * 100;
+                    fs.innerHTML = "<b>⚔️ 武器Lv: " + player.weaponLevel + "</b> (ATK+" + (player.weaponLevel*2) + ")<br><b>🛡️ 防具Lv: " + player.armorLevel + "</b> (DEF+" + player.armorLevel + ")<br><br>【強化に必要な素材】<br>🔩 鉄くず: 1個 (所持: <b>" + (player.inventory['鉄くず']||0) + "</b>)<br>💰 ゴールド: " + cost + "G (所持: <b>" + player.gold + "G</b>)";
+                    
+                    btn.onclick = () => {
+                        if ((player.inventory['鉄くず']||0) >= 1 && player.gold >= cost) {
+                            player.inventory['鉄くず']--; player.gold -= cost;
+                            player.weaponLevel++; player.armorLevel++; recalculateStats();
+                            showToast('⚔️ 装備を強化しました！');
+                            updateForgeUI();
+                            updateHUD();
+                        } else {
+                            fs.innerHTML += "<br><span style='color:#e63946'>⚠️ 素材またはゴールドが足りません！</span>";
+                        }
+                    };
+                };
+                updateForgeUI();
+                return;
+            }
+        }
+
+
+
+
+            // NPC判定 (半径60)
+            const npc = npcs.find(n => Math.hypot(n.x - player.x, n.y - player.y) < 60);
+            if (npc) {
+                player.state = PlayerState.DIALOGUE; player.vx = 0; player.vy = 0;
+                let lines = ["（無言）"];
+                if (npc.id === 'guide') lines = dialogues['guide'];
+                else if (npc.id === 'guildmaster') lines = dialogues['guildmaster'];
+                else if (npc.id === 'blacksmith_master') lines = ["🔨 おう！いらっしゃい。武器を鍛えるかい？", "🔥 悪いが、まだ設備が準備中でな。", "💰 とりあえず素材を持ってきたら、隣のギルドで売るんだな！"];
+                
+                dialogueState = { active: true, lines: lines, lineIdx: 0, charIdx: 0, timer: 0 };
+                document.getElementById('dialogueName').textContent = npc.name; document.getElementById('dialogueText').textContent = ""; document.getElementById('dialogueOverlay').classList.add('show');
+                return;
+            }
+
+            const adjTiles = [getTileAt(player.x, player.y), getTileAt(player.x, player.y - 18), getTileAt(player.x, player.y + 18), getTileAt(player.x - 18, player.y), getTileAt(player.x + 18, player.y)];
+            if (adjTiles.includes(5)) { openShop(); return; }
+            if (adjTiles.includes(16)) { openCooking(); return; }
+            if (adjTiles.includes(17)) {
+                player.state = PlayerState.DIALOGUE; player.vx = 0; player.vy = 0;
+                if (!player.activeQuest) {
+                    const quests = [
+            { id: 1, name: 'スライム討伐', target: 'slime', req: 5, reward: 100, desc: '街の周囲のスライムを5匹討伐せよ。' },
+            { id: 2, name: 'コウモリの脅威', target: 'bat', req: 8, reward: 150, desc: '洞窟のコウモリを8匹討伐せよ。' },
+            { id: 3, name: 'スケルトン撃退', target: 'skeleton', req: 10, reward: 200, desc: '遺跡のスケルトンを10体撃退せよ。' },
+            { id: 4, name: '深淵の魔物', target: 'wind_slime', req: 5, reward: 250, desc: '風のスライムを5匹討伐せよ。' },
+            { id: 5, name: '巨大ボスの討伐', target: 'boss', req: 1, reward: 1000, desc: '階層のボスを討伐せよ！' }
+        ];
+                    const q = quests[Math.floor(Math.random() * quests.length)];
+                    player.activeQuest = q; player.questProgress = 0;
+                    dialogueState = { active: true, lines: [`📜 【クエストボード】\n★ 『${q.name}（0/${q.req}）』を受注しました！`], lineIdx: 0, charIdx: 0, timer: 0 };
+                    document.getElementById('questText').textContent = `クエスト: ${q.name} (0/${q.req})`;
+                } else if (player.activeQuest && player.questProgress >= player.activeQuest.req) {
+                    player.gold += player.activeQuest.reward;
+                    dialogueState = { active: true, lines: [`📜 【クエストボード】\n★ 報告完了！ 報酬の【${player.activeQuest.reward}G】を獲得しました！`], lineIdx: 0, charIdx: 0, timer: 0 };
+                    player.activeQuest = null; player.questProgress = 0;
+                    document.getElementById('questText').textContent = "クエスト: なし";
+                    updateHUD();
+                } else {
+                    dialogueState = { active: true, lines: [`📜 【クエストボード】\n★ 現在の進行度: ${player.activeQuest.name} (${player.questProgress}/${player.activeQuest.req})`], lineIdx: 0, charIdx: 0, timer: 0 };
+                }
+                document.getElementById('dialogueName').textContent = "クエストボード"; document.getElementById('dialogueText').textContent = ""; document.getElementById('dialogueOverlay').classList.add('show');
+                return;
+            }
+
+            if (currentSceneId === 'guild' && Math.hypot(player.x - 9.5*TILE_SIZE, player.y - 4.5*TILE_SIZE) < 80) {
+                // ギルドマスターとの会話（素材一括売却）
+                let earned = 0;
+                let log = "";
+                for (const [item, count] of Object.entries(player.inventory)) {
+                    if (count > 0) {
+                        const price = item === 'スライムの粘液' ? 10 : (item === '風の結晶' ? 25 : (item === '鉄くず' ? 50 : (item === 'アビスコア' ? 500 : 15)));
+                        earned += price * count;
+                        log += `${item} x${count} -> ${price * count}G\n`;
+                        player.inventory[item] = 0;
+                    }
+                }
+                player.state = PlayerState.DIALOGUE; player.vx = 0; player.vy = 0;
+                if (earned > 0) {
+                    player.gold += earned;
+                    dialogueState = { active: true, lines: [`🍻 おお、素材を持ってきたな！\n買い取ろう。\n${log}\n合計: ${earned}G を渡したぞ！`], lineIdx: 0, charIdx: 0, timer: 0 };
+                } else {
+                    dialogueState = { active: true, lines: dialogues['guildmaster'], lineIdx: 0, charIdx: 0, timer: 0 };
+                }
+                document.getElementById('dialogueName').textContent = "ギルドマスター"; document.getElementById('dialogueText').textContent = ""; document.getElementById('dialogueOverlay').classList.add('show');
+                updateHUD();
+                return;
+            }
+
+            const offsets = [{x:0, y:-20}, {x:0, y:20}, {x:-20, y:0}, {x:20, y:0}];
+            for (let opt of offsets) {
+                const tile = getTileAt(player.x + opt.x, player.y + opt.y);
+                if (tile === 4 || tile === 8 || tile === 9 || tile === 7) {
+                    let reqKey = '', keyName = '';
+                    if (tile === 4) { reqKey = 'start'; keyName = '青の鍵（start）'; }
+                    else if (tile === 8) { reqKey = 'forest'; keyName = '緑の鍵（forest）'; }
+                    else if (tile === 9) { reqKey = 'crystal'; keyName = '紫の鍵'; }
+                    else if (tile === 7) { reqKey = 'temple'; keyName = '赤の鍵'; }
+
+                    
+                    let canOpen = false;
+                    if (tile === 4 && player.keys['start']) canOpen = true;
+                    else if (tile === 8 && player.keys['forest']) canOpen = true;
+                    else if (tile === 9 && player.keys['crystal']) canOpen = true;
+                    else if (tile === 7 && player.keys['temple']) canOpen = true;
+
+                    if (canOpen) {
+                        const bx = player.x + opt.x, by = player.y + opt.y;
+                        [0, -32, 32].forEach(dy => [0, -32, 32].forEach(dx => {
+                            const c = Math.floor((bx + dx) / TILE_SIZE), r = Math.floor((by + dy) / TILE_SIZE);
+                            if (map[r] && map[r][c] === tile) map[r][c] = 0;
+                        }));
+                        showToast(`🔑 【${keyName}】で封印を解きました！(鍵は失われません)`);
+                        updateHUD();
+                    } else { showToast(`🔒 この扉には【${keyName}】が必要です。`); }
+
+                    return;
+                }
+            }
+
+            chests.forEach(chest => {
+                if (!chest.opened && Math.hypot(chest.x - player.x, chest.y - player.y) < 36) {
+                    chest.opened = true; 
+                    if (chest.keyId === 'gold') {
+                        player.gold += 150; showToast("🎁 宝箱を開けた！【150G】を獲得！");
+                    } else {
+                        player.keys[chest.keyId] = true; player.gold += 50;
+                        showToast(`🎁 宝箱を開けた！【${chest.keyId}の鍵】と【50G】を獲得！`);
+                    }
+                    for(let i=0; i<12; i++) damageParticles.push({ x: chest.x, y: chest.y, vx: (Math.random()-0.5)*100, vy: (Math.random()-0.5)*100, life: 0.4, color: chest.color });
+                    updateHUD();
+                }
+            });
+        }
+
+        function applyDamageToEnemy(enemy, damageStr) {
+            enemy.hitStun = 0.5; enemy.hp -= Math.max(1, damageStr);
+            const ang = Math.atan2(enemy.y - player.y, enemy.x - player.x);
+            enemy.vx = Math.cos(ang) * 300; enemy.vy = Math.sin(ang) * 300;
+
+            if (enemy.hp <= 0) {
+                enemy.isDead = true; enemy.respawnTimer = 15.0; spawnDrops(enemy.x, enemy.y, enemy.xp, enemy.gold); 
+                
+                // アイテムドロップ処理
+                if (enemy.dropItem && Math.random() < 0.6) { // 60%の確率でドロップ
+                    player.inventory[enemy.dropItem] = (player.inventory[enemy.dropItem] || 0) + 1;
+                    showToast(`✨ 『${enemy.dropItem}』を手に入れた！`);
+                }
+                if (enemy.type === 'boss') {
+                    player.inventory['記憶の欠片'] = (player.inventory['記憶の欠片'] || 0) + 1;
+                    showToast(`💎 記憶の欠片を獲得！さらに、次の階層への道が開かれた！`);
+                    
+                    let currentFloor = 1;
+                    if (currentSceneId.startsWith('dungeon_f')) {
+                        currentFloor = parseInt(currentSceneId.split('_f')[1]);
+                    }
+                    if (player.maxReachedFloor <= currentFloor) {
+                        player.maxReachedFloor = currentFloor + 1;
+                        showToast(`🌀 深部への転移座標を記憶しました！ (到達可能: ${player.maxReachedFloor}階層)`);
+                    }
+
+                    // ボス部屋の中央北側（固定座標）にポータルを出現させる
+                    const ec = 40;
+                    const er = 15;
+                    map[er][ec] = 12; // ポータルタイル
+                    if(map[er][ec+1] !== undefined) map[er][ec+1] = 12;
+                    if(map[er][ec-1] !== undefined) map[er][ec-1] = 12;
+                    
+                    let nextDest = 'city';
+                    let nextSc = 40, nextSr = 56;
+                    if (currentSceneId === 'dungeon_f1') { nextDest = 'dungeon_f2'; nextSc = 30; nextSr = 55; }
+                    else if (currentSceneId === 'dungeon_f2') { nextDest = 'dungeon_f3'; nextSc = 30; nextSr = 55; }
+                    else if (currentSceneId === 'dungeon_f3') { nextDest = 'dungeon_f4'; nextSc = 10; nextSr = 45; }
+                    else if (currentSceneId === 'dungeon_f4') { nextDest = 'dungeon_f5'; nextSc = 30; nextSr = 55; }
+                    else if (currentSceneId === 'dungeon_f5') { nextDest = 'dungeon_f6'; nextSc = 50; nextSr = 10; }
+                    else if (currentSceneId === 'dungeon_f6') { nextDest = 'dungeon_f7'; nextSc = 40; nextSr = 76; }
+                    else if (currentSceneId === 'dungeon_f7') { nextDest = 'city'; } // 以降は街へ戻る
+                    
+                    currentScene.portals.push({ c: ec, r: er, dest: nextDest, sc: nextSc, sr: nextSr });
+                }
+
+                // クエスト進行処理
+                if (player.activeQuest && enemy.type.includes(player.activeQuest.target)) {
+                    player.questProgress++;
+                    document.getElementById('questText').textContent = `クエスト: ${player.activeQuest.name} (${player.questProgress}/${player.activeQuest.req})`;
+                    if (player.questProgress >= player.activeQuest.req) showToast("🎉 クエスト目標達成！ギルドへ報告しよう！");
+                }
+            }
+        }
+
+        function triggerAttack() {
+            if (player.state === PlayerState.DASH) return;
+            if (player.state === PlayerState.ATTACK && player.currentSoulId !== 'Cyan') return; // Cyan can spam
+            
+            player.state = PlayerState.ATTACK; 
+
+            if (player.currentSoulId === 'Ares') {
+                player.attackTimer = 0.3;
+                player.comboCount = (player.comboCount + 1) % 3;
+                let multiplier = player.comboCount === 2 ? 1.5 : 1.0;
+                let knockback = player.comboCount === 2 ? 300 : 50;
+                let offsetAngle = player.comboCount === 1 ? -0.3 : (player.comboCount === 2 ? 0 : 0.3);
+
+                swordSlashes.push({ x: player.x + Math.cos(player.angle+offsetAngle)*25, y: player.y + Math.sin(player.angle+offsetAngle)*25, life: 0.15, angle: player.angle+offsetAngle });
+                enemies.forEach(enemy => {
+                    if (!enemy.isAlive || Math.hypot(enemy.x - player.x, enemy.y - player.y) >= 55) return;
+                    if (enemy.isInvincible) return;
+                    applyDamageToEnemy(enemy, player.atk * multiplier);
+                    enemy.hitStun = 0.5;
+                    enemy.vx = Math.cos(player.angle)*knockback; enemy.vy = Math.sin(player.angle)*knockback;
+                });
+                player.ultGauge = Math.min(100, player.ultGauge + 5);
+            } else if (player.currentSoulId === 'Cyan') {
+                player.attackTimer = 0.1;
+                player.comboCount = (player.comboCount + 1) % 5;
+                let offset = (player.comboCount % 2 === 0) ? 0.2 : -0.2;
+                swordSlashes.push({ x: player.x + Math.cos(player.angle + offset)*18, y: player.y + Math.sin(player.angle + offset)*18, life: 0.1, angle: player.angle + offset });
+                enemies.forEach(enemy => {
+                    if (!enemy.isAlive || Math.hypot(enemy.x - player.x, enemy.y - player.y) >= 40) return;
+                    if (enemy.isInvincible) return;
+                    applyDamageToEnemy(enemy, player.atk * 0.4);
+                });
+                player.ultGauge = Math.min(100, player.ultGauge + 2);
+            } else if (player.currentSoulId === 'Lilith') {
+                // Lilith holds to charge
+                if(player.chargeTimer === 0) {
+                    player.attackTimer = 0.3;
+                    playerProjectiles.push(new PlayerProjectile(player.x, player.y, player.angle, 350, '#c084fc', player.atk, false));
+                    player.ultGauge = Math.min(100, player.ultGauge + 3);
+                }
+            }
+
+            bossCrystals.forEach(c => {
+                if (!c.active && Math.hypot(c.x - player.x, c.y - player.y) < 40) {
+                    c.active = true; showToast("🔮 クリスタルを起動した！");
+                    for(let i=0; i<10; i++) damageParticles.push({ x: c.x, y: c.y, vx: (Math.random()-0.5)*150, vy: (Math.random()-0.5)*150, life: 0.3, color: '#38bdf8' });
+                }
+            });
+        }
+
+        function spawnDrops(x, y, xp, gold) {
+            const coinsCount = Math.floor(Math.random() * 3) + 2;
+            for(let i=0; i<coinsCount; i++) drops.push({ type: 'gold', x, y, vx: (Math.random()-0.5)*150, vy: (Math.random()-0.5)*150, amount: Math.ceil(gold/coinsCount), life: 10 });
+            drops.push({ type: 'xp', x, y, vx: (Math.random()-0.5)*80, vy: (Math.random()-0.5)*80, amount: xp, life: 10 });
+        }
+
+        function resolveSafetyCollisions() {
+            [{x:0,y:-1}, {x:0,y:1}, {x:-1,y:0}, {x:1,y:0}].forEach(dir => {
+                const cx = player.x + dir.x * (COLLISION_RADIUS + SAFE_MARGIN);
+                const cy = player.y + dir.y * (COLLISION_RADIUS + SAFE_MARGIN);
+                const tile = getTileAt(cx, cy);
+                // 1:壁, 4:青扉, 8:緑扉, 9:紫扉, 7:赤扉
+                if (tile === 1 || tile === 4 || tile === 8 || tile === 9 || tile === 7) {
+                    const tx = (Math.floor(cx/TILE_SIZE)+0.5)*TILE_SIZE, ty = (Math.floor(cy/TILE_SIZE)+0.5)*TILE_SIZE;
+                    const dx = player.x - tx, dy = player.y - ty;
+                    const len = Math.hypot(dx, dy) || 1;
+                    const min = TILE_SIZE/2 + COLLISION_RADIUS;
+                    if (len < min) {
+                        player.x += (dx/len) * (min - len); player.y += (dy/len) * (min - len);
+                        if (player.vx * dir.x > 0) player.vx = 0; if (player.vy * dir.y > 0) player.vy = 0;
+                    }
+                }
+            });
+        }
+
+        let lastTime = 0;
+        function update(time) {
+
+        
+
+            const dt = Math.min((time - lastTime) / 1000, 0.1); lastTime = time;
+
+            if (player.state === PlayerState.DIALOGUE) {
+                if (dialogueState.active && dialogueState.lines.length > 0) {
+                    dialogueState.timer += dt;
+                    if (dialogueState.timer > 0.03) {
+                        dialogueState.timer = 0; const curLine = dialogueState.lines[dialogueState.lineIdx];
+                        if (curLine && dialogueState.charIdx < curLine.length) { dialogueState.charIdx++; document.getElementById('dialogueText').textContent = curLine.substring(0, dialogueState.charIdx); }
+                    }
+                }
+                render(); requestAnimationFrame(update); return;
+            }
+
+            const currentTile = getTileAt(player.x, player.y);
+            
+            // ポータルワープ処理
+            // タイルIDに依存せず、現在座標にポータル定義があれば判定する
+            const pc = Math.floor(player.x / TILE_SIZE);
+            const pr = Math.floor(player.y / TILE_SIZE);
+            const portal = currentScene.portals && currentScene.portals.find(p => p.c === pc && p.r === pr);
+            if (portal && !player.warping) {
+                if (currentSceneId === 'city' && portal.dest.startsWith('dungeon_f')) {
+                    // ファストトラベルUIを表示
+                    player.warping = true;
+                    player.state = PlayerState.DIALOGUE; player.vx = 0; player.vy = 0;
+                    
+                    // ポータルから少し戻す（無限ワープ防止）
+                    player.y -= 10;
+                    
+                    const fto = document.getElementById('fastTravelOverlay');
+                    const ftl = document.getElementById('fastTravelList');
+                    fto.style.display = 'block';
+                    
+                    window.fastTravelTo = function(floor) {
+                        document.getElementById('fastTravelOverlay').style.display='none';
+                        player.state = PlayerState.IDLE;
+                        
+                        // 階層ごとのデフォルトスポーン座標を設定
+                        let dest = `dungeon_f${floor}`;
+                        let sc = 40, sr = 76;
+                        if (floor === 2) { sc = 30; sr = 55; }
+                        else if (floor === 3) { sc = 10; sr = 45; }
+                        else if (floor === 4) { sc = 30; sr = 55; }
+                        else if (floor === 5) { sc = 50; sr = 10; }
+                        else if (floor === 6) { sc = 50; sr = 10; }
+                        else if (floor === 7) { sc = 40; sr = 76; } // 適当なデフォルト値
+                        
+                        loadScene(dest, sc, sr);
+                        setTimeout(() => { player.warping = false; }, 500);
+                    };
+
+                    let html = "";
+                    for(let i = 1; i <= (player.maxReachedFloor || 1); i++) {
+                        html += `<button onclick="fastTravelTo(${i})" style="padding: 12px 20px; background: rgba(59, 130, 246, 0.2); border: 1px solid #3b82f6; border-radius: 5px; color: white; font-size: 16px; cursor: pointer; transition: 0.2s;" onmouseover="this.style.background='rgba(59, 130, 246, 0.5)'" onmouseout="this.style.background='rgba(59, 130, 246, 0.2)'">地下 ${i} 階層へ転移</button>`;
+                    }
+                    ftl.innerHTML = html;
+                } else {
+                    player.warping = true;
+                    loadScene(portal.dest, portal.sc, portal.sr);
+                    setTimeout(() => { player.warping = false; }, 500);
+                }
+            }
+
+            const isOnFloor = currentTile === 0 || currentTile === 3 || currentTile === 5 || currentTile === 6 || currentTile === 12;
+            const isInPit = currentTile === 2;
+
+            if (player.state === PlayerState.DASH) { player.dashTimer -= dt; if (player.dashTimer <= 0) player.state = PlayerState.IDLE; }
+            else if (player.state === PlayerState.ATTACK) { player.attackTimer -= dt; if (player.attackTimer <= 0) player.state = PlayerState.IDLE; }
+
+            // HP / MP / SP 自然回復とチャージ処理
+            player.mp = Math.min(player.maxMp, player.mp + 5 * dt); // MPは秒間5回復
+            player.sp = Math.min(player.maxSp, player.sp + 10 * dt); // SPは秒間10回復
+            if (player.isAttacking && player.currentSoulId === 'Lilith') player.chargeTimer += dt;
+            else player.chargeTimer = 0;
+            updateHUD();
+
+            if (player.state !== PlayerState.DASH && player.state !== PlayerState.ATTACK) {
+                let dx = 0, dy = 0; if (keys['w']) dy = -1; if (keys['s']) dy = 1; if (keys['a']) dx = -1; if (keys['d']) dx = 1;
+
+                if (dx !== 0 || dy !== 0) player.angle = Math.atan2(dy, dx);
+                if (dx !== 0 || dy !== 0) { player.vx = dx * player.spd; player.vy = dy * player.spd; player.state = PlayerState.WALK; }
+                else { player.vx *= 0.2; player.vy *= 0.2; if (Math.hypot(player.vx, player.vy) < 5) { player.vx = 0; player.vy = 0; player.state = PlayerState.IDLE; } }
+            }
+
+            player.x += player.vx * dt; player.y += player.vy * dt;
+            if (isNaN(player.x)) { player.x = (currentSpawnC + 0.5) * TILE_SIZE; player.y = (currentSpawnR + 0.5) * TILE_SIZE; player.vx = 0; player.vy = 0; } // Fallback
+
+            resolveSafetyCollisions();
+
+            if (isInPit) {
+                const isHovering = player.state === PlayerState.DASH;
+                if (isHovering) player.state = PlayerState.HOVER;
+                else { player.hp -= 15; player.x = (currentSpawnC + 0.5) * TILE_SIZE; player.y = (currentSpawnR + 0.5) * TILE_SIZE; player.vx = 0; player.vy = 0; showToast("奈落に落下！スタート地点へ戻されます。"); }
+            } else if (currentTile === 3) {
+                player.hp -= 5; player.x = (currentSpawnC + 0.5) * TILE_SIZE; player.y = (currentSpawnR + 0.5) * TILE_SIZE; player.vx = 0; player.vy = 0; showToast("罠に激突！スタート地点へ戻されます。");
+            }
+            if (player.hp <= 0) { 
+                player.foodBuffs = { maxHp: 0, atk: 0, def: 0, spd: 0 }; // 料理バフリセット
+                recalculateStats();
+                player.hp = player.maxHp; player.x = (currentSpawnC + 0.5) * TILE_SIZE; player.y = (currentSpawnR + 0.5) * TILE_SIZE; player.vx = 0; player.vy = 0; 
+                showToast("ゲームオーバー... 食事の効果が消えた。"); 
+            }
+
+            drops.forEach((drop, idx) => {
+                drop.vx *= 0.95; drop.vy *= 0.95; drop.x += drop.vx * dt; drop.y += drop.vy * dt; drop.life -= dt;
+                const dist = Math.hypot(player.x - drop.x, player.y - drop.y) || 1;
+                if (dist < 110) { const force = (110 - dist) / 110; drop.vx += ((player.x - drop.x)/dist) * 450 * force * dt; drop.vy += ((player.y - drop.y)/dist) * 450 * force * dt; }
+                if (dist < COLLISION_RADIUS + 6) {
+                    if (drop.type === 'gold') { player.gold += drop.amount; }
+                    else if (drop.type === 'xp') {
+                        player.xp += drop.amount;
+                        if (player.xp >= player.xpNeeded) {
+                            player.xp -= player.xpNeeded; 
+                            const s = souls[player.currentSoulId];
+                            s.level++; s.xpNeeded = Math.floor(s.xpNeeded*1.5);
+                            s.maxHp += 10; s.maxMp += 5; s.atk += 2; s.def += 1;
+                            recalculateStats();
+                            player.hp = player.maxHp; player.mp = player.maxMp;
+                            
+                            const b = document.getElementById('levelUpBanner'); b.classList.add('show'); setTimeout(() => b.classList.remove('show'), 1200);
+                        }
+                    }
+                    drops.splice(idx, 1);
+                } else if (drop.life <= 0) drops.splice(idx, 1);
+            });
+
+            pushBlocks.forEach(b => {
+                if (!b.active) return;
+                b.vx *= 0.8; b.vy *= 0.8;
+                let nx = b.x + b.vx * dt, ny = b.y + b.vy * dt;
+                const tile = getTileAt(nx, ny);
+                if (tile === 1 || tile === 4 || tile === 8 || tile === 9 || tile === 7 || tile === 3) { b.vx = 0; b.vy = 0; }
+                else if (tile === 2) {
+                    b.active = false; map[Math.floor(ny/TILE_SIZE)][Math.floor(nx/TILE_SIZE)] = 0;
+                    for(let i=0; i<15; i++) damageParticles.push({ x: nx, y: ny, vx: (Math.random()-0.5)*120, vy: (Math.random()-0.5)*120, life: 0.5, color: '#94a3b8' });
+                } else { b.x = nx; b.y = ny; }
+            });
+
+            enemies.forEach(e => e.update(dt));
+
+            for (let i = enemyProjectiles.length - 1; i >= 0; i--) {
+                enemyProjectiles[i].update(dt);
+                if (!enemyProjectiles[i].active || enemyProjectiles[i].life <= 0) enemyProjectiles.splice(i, 1);
+            }
+
+            for (let i = playerProjectiles.length - 1; i >= 0; i--) {
+                playerProjectiles[i].update(dt);
+                if (!playerProjectiles[i].active || playerProjectiles[i].life <= 0) playerProjectiles.splice(i, 1);
+            }
+
+            swordSlashes.forEach(s => s.life -= dt); damageParticles.forEach(p => { p.x += p.vx*dt; p.y += p.vy*dt; p.life -= dt; });
+            camera.x += (player.x - camera.x) * 10 * dt; camera.y += (player.y - camera.y) * 10 * dt;
+
+            updateHUD();
+            render();
+            requestAnimationFrame(update);
+        }
+
+        function recalculateStats() {
+            const s = souls[player.currentSoulId];
+            player.level = s.level; player.xp = s.xp; player.xpNeeded = s.xpNeeded;
+            player.spd = s.spd + (player.foodBuffs ? player.foodBuffs.spd : 0);
+            player.maxHp = s.maxHp + (player.foodBuffs ? player.foodBuffs.maxHp : 0);
+            player.maxMp = s.maxMp;
+            player.atk = s.atk + (player.weaponLevel - 1) * 2 + (player.foodBuffs ? player.foodBuffs.atk : 0);
+            player.def = s.def + (player.armorLevel - 1) * 1 + (player.foodBuffs ? player.foodBuffs.def : 0);
+        }
+
+        function updateHUD() {
+            document.getElementById('hpText').textContent = `${Math.floor(player.hp)}/${player.maxHp}`;
+            document.getElementById('hpBar').style.width = `${(Math.max(0, player.hp)/player.maxHp)*100}%`;
+            document.getElementById('mpText').textContent = `${Math.floor(player.mp)}/${player.maxMp}`;
+            document.getElementById('mpBar').style.width = `${(Math.max(0, player.mp)/player.maxMp)*100}%`;
+            if (document.getElementById('spText')) {
+                document.getElementById('spText').textContent = `${Math.floor(player.sp)}/${player.maxSp}`;
+                document.getElementById('spBar').style.width = `${(Math.max(0, player.sp)/player.maxSp)*100}%`;
+                document.getElementById('ultText').textContent = `${Math.floor(player.ultGauge)}%`;
+                document.getElementById('ultBar').style.width = `${Math.min(100, player.ultGauge)}%`;
+            }
+            
+            document.getElementById('levelDisplay').textContent = `LV ${player.level}`;
+            document.getElementById('xpBar').style.width = `${(player.xp / player.xpNeeded) * 100}%`;
+            document.getElementById('goldDisplay').textContent = `${player.gold} G`;
+            document.getElementById('atkDisplay').textContent = `ATK: ${player.atk}`;
+            document.getElementById('defDisplay').textContent = `DEF: ${player.def}`;
+        }
+
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.save();
+            ctx.translate(canvas.width / 2, canvas.height / 2);
+            if(isNaN(camera.x) || isNaN(camera.y)) { camera.x = 112; camera.y = 1360; }
+            ctx.translate(-camera.x, -camera.y);
+
+            const startCol = Math.max(0, Math.floor((camera.x - canvas.width/2)/TILE_SIZE));
+            const endCol = Math.min(MAP_COLS, Math.ceil((camera.x + canvas.width/2)/TILE_SIZE));
+            const startRow = Math.max(0, Math.floor((camera.y - canvas.height/2)/TILE_SIZE));
+            const endRow = Math.min(MAP_ROWS, Math.ceil((camera.y + canvas.height/2)/TILE_SIZE));
+
+            for (let r = startRow; r < endRow; r++) {
+                for (let c = startCol; c < endCol; c++) {
+                    const tile = map[r][c]; const tx = c * TILE_SIZE, ty = r * TILE_SIZE; const theme = currentScene.getTheme();
+                    if (tile === 1) { ctx.fillStyle = theme.wall; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE); ctx.strokeStyle = theme.border; ctx.lineWidth = 1; ctx.strokeRect(tx, ty, TILE_SIZE, TILE_SIZE); }
+                    else if (tile === 10) { ctx.fillStyle = '#64748b'; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE); ctx.strokeStyle = '#475569'; ctx.strokeRect(tx, ty, TILE_SIZE, TILE_SIZE); }
+                    else if (tile === 2) { ctx.fillStyle = theme.pit; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE); }
+                    else if (tile === 3) { ctx.fillStyle = theme.floor; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE); ctx.fillStyle = theme.spike; ctx.beginPath(); ctx.moveTo(tx, ty+TILE_SIZE); ctx.lineTo(tx+8, ty); ctx.lineTo(tx+16, ty+TILE_SIZE); ctx.lineTo(tx+24, ty); ctx.lineTo(tx+32, ty+TILE_SIZE); ctx.fill(); }
+                    else if (tile === 4) { ctx.fillStyle = '#3f3f46'; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE); ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 2; ctx.strokeRect(tx, ty, TILE_SIZE, TILE_SIZE); ctx.fillStyle = '#38bdf8'; ctx.beginPath(); ctx.arc(tx+16, ty+10, 4, 0, Math.PI*2); ctx.fill(); ctx.fillRect(tx+14, ty+13, 4, 8); }
+                    else if (tile === 8) { ctx.fillStyle = '#3f3f46'; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE); ctx.strokeStyle = '#10b981'; ctx.lineWidth = 2; ctx.strokeRect(tx, ty, TILE_SIZE, TILE_SIZE); ctx.fillStyle = '#10b981'; ctx.beginPath(); ctx.arc(tx+16, ty+10, 4, 0, Math.PI*2); ctx.fill(); ctx.fillRect(tx+14, ty+13, 4, 8); }
+                    else if (tile === 9) { ctx.fillStyle = '#3f3f46'; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE); ctx.strokeStyle = '#a855f7'; ctx.lineWidth = 2; ctx.strokeRect(tx, ty, TILE_SIZE, TILE_SIZE); ctx.fillStyle = '#a855f7'; ctx.beginPath(); ctx.arc(tx+16, ty+10, 4, 0, Math.PI*2); ctx.fill(); ctx.fillRect(tx+14, ty+13, 4, 8); }
+                    else if (tile === 7) { ctx.fillStyle = '#3f3f46'; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE); ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 2; ctx.strokeRect(tx, ty, TILE_SIZE, TILE_SIZE); ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(tx+16, ty+10, 4, 0, Math.PI*2); ctx.fill(); ctx.fillRect(tx+14, ty+13, 4, 8); }
+                    else if (tile === 5) { ctx.fillStyle = '#0f172a'; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE); ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 2; ctx.strokeRect(tx+4, ty+4, 24, 24); ctx.fillStyle = '#38bdf8'; ctx.beginPath(); ctx.arc(tx+16, ty+16, 5, 0, Math.PI*2); ctx.fill(); }
+                    else if (tile === 12) {
+                        ctx.fillStyle = theme.floor; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
+                        ctx.strokeStyle = '#c084fc'; ctx.lineWidth = 2;
+                        ctx.beginPath(); ctx.arc(tx+16, ty+16, 12 + Math.sin(Date.now()/200)*2, 0, Math.PI*2); ctx.stroke();
+                        ctx.fillStyle = '#c084fc'; ctx.globalAlpha = 0.3; ctx.fill(); ctx.globalAlpha = 1.0;
+                    }
+                    else if (tile === 17) {
+                        ctx.fillStyle = theme.floor; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
+                        ctx.fillStyle = '#8b4513'; ctx.fillRect(tx+2, ty+2, 28, 28);
+                        ctx.fillStyle = '#fef08a'; ctx.fillRect(tx+6, ty+6, 8, 10); ctx.fillRect(tx+18, ty+10, 8, 10);
+                        ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(tx+10, ty+8, 1.5, 0, Math.PI*2); ctx.fill();
+                        ctx.beginPath(); ctx.arc(tx+22, ty+12, 1.5, 0, Math.PI*2); ctx.fill();
+                    }
+                    else if (tile === 11) {
+                        // 建物の枠（壁タイル）
+                        ctx.fillStyle = '#5c3a1e'; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
+                        ctx.strokeStyle = '#8b6914'; ctx.lineWidth = 2; ctx.strokeRect(tx, ty, TILE_SIZE, TILE_SIZE);
+                    }
+                    else if (tile >= 13 && tile <= 19) {
+                        if (tile === 13 && imgGuild.complete && imgGuild.naturalWidth > 0) {
+                            ctx.drawImage(imgGuild, tx - 64, ty - 128, 160, 160);
+                        } else {
+                            ctx.fillStyle = theme.floor; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
+                            // 建物の入り口マーカー（枠付き）
+                            ctx.fillStyle = 'rgba(30, 20, 10, 0.7)'; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
+                            ctx.strokeStyle = '#d4af37'; ctx.lineWidth = 2; ctx.strokeRect(tx+1, ty+1, TILE_SIZE-2, TILE_SIZE-2);
+                            ctx.font = '20px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                            let icon = '🚪';
+                            if (tile === 13) icon = '⚔️';
+                            if (tile === 14) icon = '🔨';
+                            if (tile === 15) icon = '🔮';
+                            if (tile === 16) icon = '🛏️';
+                            if (tile === 18) icon = '🏰';
+                            if (tile === 19) icon = '🗡️';
+                            ctx.fillText(icon, tx + TILE_SIZE/2, ty + TILE_SIZE/2 + 2);
+                        }
+                    }
+                    else { ctx.fillStyle = theme.floor; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE); ctx.strokeStyle = 'rgba(255,255,255,0.03)'; ctx.strokeRect(tx, ty, TILE_SIZE, TILE_SIZE); }
+                }
+            }
+
+            chests.forEach(chest => {
+                ctx.save(); ctx.translate(chest.x, chest.y);
+                ctx.fillStyle = chest.opened ? '#a1a1aa' : chest.color; ctx.shadowColor = chest.color; ctx.shadowBlur = chest.opened ? 0 : 12;
+                ctx.fillRect(-12, -10, 24, 20); ctx.fillStyle = '#3f3f46'; ctx.fillRect(-4, -10, 8, 20);
+                ctx.fillStyle = chest.opened ? '#71717a' : '#fff'; ctx.fillRect(-2, -2, 4, 6); ctx.restore();
+            });
+
+            drops.forEach(drop => {
+                ctx.save(); ctx.translate(drop.x, drop.y); ctx.shadowBlur = 8;
+                if (drop.type === 'gold') { ctx.fillStyle = '#fbbf24'; ctx.shadowColor = '#fbbf24'; ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI*2); ctx.fill(); }
+                else { ctx.fillStyle = '#10b981'; ctx.shadowColor = '#10b981'; ctx.beginPath(); ctx.arc(0, 0, 3, 0, Math.PI*2); ctx.fill(); }
+                ctx.restore();
+            });
+
+            pushBlocks.forEach(b => {
+                if (!b.active) return;
+                ctx.fillStyle = '#475569'; ctx.fillRect(b.x - 14, b.y - 14, 28, 28);
+                ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 2; ctx.strokeRect(b.x - 14, b.y - 14, 28, 28);
+                ctx.fillStyle = '#38bdf8'; ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI*2); ctx.fill();
+            });
+
+            bossCrystals.forEach(c => {
+                ctx.fillStyle = c.active ? '#38bdf8' : '#3f3f46'; ctx.shadowBlur = c.active ? 15 : 0; ctx.shadowColor = '#38bdf8';
+                ctx.beginPath(); ctx.moveTo(c.x, c.y - 12); ctx.lineTo(c.x + 8, c.y); ctx.lineTo(c.x, c.y + 12); ctx.lineTo(c.x - 8, c.y); ctx.fill(); ctx.shadowBlur = 0;
+            });
+
+            npcs.forEach(n => {
+                ctx.fillStyle = currentScene.getTheme().npc; ctx.shadowColor = currentScene.getTheme().npc; ctx.shadowBlur = 15;
+                ctx.fillRect(n.x - 4, n.y - 8, 8, 16); ctx.beginPath(); ctx.arc(n.x, n.y - 10, 4, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
+            });
+
+            enemies.forEach(e => e.render(ctx));
+
+            enemyProjectiles.forEach(p => { if(p.active) p.render(ctx); });
+            playerProjectiles.forEach(p => { if(p.active) p.render(ctx); });
+
+            swordSlashes.forEach(s => {
+                if (s.life <= 0) return; ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.angle); ctx.strokeStyle = 'rgba(56, 189, 248, 0.8)'; ctx.lineWidth = 4;
+                ctx.beginPath(); ctx.arc(0, 0, 24, -Math.PI/3, Math.PI/3); ctx.stroke(); ctx.restore();
+            });
+
+            damageParticles.forEach(p => { if (p.life > 0) { ctx.fillStyle = p.color; ctx.fillRect(p.x-2, p.y-2, 4, 4); }});
+
+            if (!isNaN(player.x) && !isNaN(player.y) && !isNaN(player.angle)) {
+                let fImg = imgAresFront, bImg = imgAresBack, lImg = imgAresLeft, rImg = imgAresRight;
+                if (player.currentSoulId === 'Cyan') {
+                    fImg = imgCyanFront; bImg = imgCyanBack; lImg = imgCyanLeft; rImg = imgCyanRight;
+                }
+                
+                if (fImg.complete && fImg.naturalWidth > 0) {
+                    ctx.save(); ctx.translate(player.x, player.y);
+                    let img = fImg;
+                    let a = player.angle * 180 / Math.PI;
+                    if (a > 45 && a < 135) img = fImg; // 下
+                    else if (a < -45 && a > -135) img = bImg; // 上
+                    else if (Math.abs(a) <= 45) { img = rImg; } // 右
+                    else { img = lImg; } // 左
+                    // プログラム上の当たり判定(直径24)とマップタイル(32)に合わせたサイズ
+                    ctx.drawImage(img, -18, -24, 36, 44);
+                    ctx.restore();
+                } else {
+                    ctx.save(); ctx.translate(player.x, player.y); ctx.rotate(player.angle);
+                    ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.arc(0, 4, COLLISION_RADIUS, 0, Math.PI*2); ctx.fill();
+                    ctx.fillStyle = player.isZeroFriction ? '#c084fc' : '#38bdf8'; ctx.shadowColor = player.isZeroFriction ? '#a855f7' : '#38bdf8';
+                    ctx.shadowBlur = 15; ctx.beginPath(); ctx.arc(0, 0, COLLISION_RADIUS, 0, Math.PI*2); ctx.fill();
+                    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(4, -3, 3, 0, Math.PI*2); ctx.arc(4, 3, 3, 0, Math.PI*2); ctx.fill();
+                    ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(5, -3, 1.5, 0, Math.PI*2); ctx.arc(5, 3, 1.5, 0, Math.PI*2); ctx.fill();
+                    ctx.restore();
+                }
+            }
+
+            // NPC/施設への案内ラベル（ゲームワールド座標系で描画）
+            npcs.forEach(n => {
+                const dist = Math.hypot(n.x - player.x, n.y - player.y);
+                if (dist < 120) {
+                    ctx.save();
+                    ctx.font = 'bold 11px Noto Sans JP';
+                    ctx.textAlign = 'center';
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                    const label = '[E] ' + n.name;
+                    const tw = ctx.measureText(label).width + 12;
+                    ctx.fillRect(n.x - tw/2, n.y - 32, tw, 18);
+                    ctx.strokeStyle = '#d4af37'; ctx.lineWidth = 1;
+                    ctx.strokeRect(n.x - tw/2, n.y - 32, tw, 18);
+                    ctx.fillStyle = '#fbbf24';
+                    ctx.fillText(label, n.x, n.y - 18);
+                    ctx.restore();
+                }
+            });
+
+            // ギルド受付嬢ヒント
+            if (currentSceneId === 'guild' && player.y < 10 * TILE_SIZE) {
+                ctx.save();
+                ctx.font = 'bold 14px Noto Sans JP';
+                ctx.textAlign = 'center';
+                ctx.fillStyle = 'rgba(157, 78, 221, 0.8)';
+                ctx.fillText('👩‍💼 [E] ギルド受付嬢 (クエスト)', player.x, player.y - 40);
+                ctx.restore();
+            }
+
+            ctx.restore();
+            
+            drawMinimap(ctx);
+        }
+
+        function drawMinimap(ctx) {
+            const mmSize = 150;
+            const padding = 20;
+            const x = canvas.width - mmSize - padding;
+            const y = padding;
+            
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.lineWidth = 2;
+            ctx.fillRect(x, y, mmSize, mmSize);
+            ctx.strokeRect(x, y, mmSize, mmSize);
+            
+            const scaleX = mmSize / (MAP_COLS * TILE_SIZE);
+            const scaleY = mmSize / (MAP_ROWS * TILE_SIZE);
+            const scale = Math.min(scaleX, scaleY);
+            
+            const offsetX = x + (mmSize - (MAP_COLS * TILE_SIZE * scale)) / 2;
+            const offsetY = y + (mmSize - (MAP_ROWS * TILE_SIZE * scale)) / 2;
+            
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            for(let r=0; r<MAP_ROWS; r++) {
+                for(let c=0; c<MAP_COLS; c++) {
+                    const tile = map[r][c];
+                    if(tile === 1) {
+                        ctx.fillRect(offsetX + c*TILE_SIZE*scale, offsetY + r*TILE_SIZE*scale, TILE_SIZE*scale, TILE_SIZE*scale);
+                    } else if (tile >= 12 && tile <= 19) {
+                        ctx.fillStyle = '#fbbf24';
+                        ctx.fillRect(offsetX + c*TILE_SIZE*scale, offsetY + r*TILE_SIZE*scale, TILE_SIZE*scale, TILE_SIZE*scale);
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                    }
+                }
+            }
+            
+            
+            // ミニマップにはヒントテキストを描画しない（メインのrender()で描画する）
+
+            // Player
+            ctx.fillStyle = '#38bdf8';
+            ctx.beginPath();
+            ctx.arc(offsetX + player.x * scale, offsetY + player.y * scale, 3, 0, Math.PI*2);
+            ctx.fill();
+        }
+
+        loadScene('city', 40, 32);
+        requestAnimationFrame(update);
+    </script>
+
+    <!-- クエストボード UI -->
+    <div id="questBoardOverlay" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 600px; background: rgba(20, 15, 10, 0.95); border: 2px solid #9d4edd; border-radius: 15px; padding: 20px; z-index: 1000; color: #fff; text-align: center; font-family: 'Noto Sans JP', sans-serif;">
+        <h2 style="color: #4facfe; margin-bottom: 20px;">👩‍💼 ギルド受付嬢</h2>
+        <div id="questList" style="text-align: left; margin-bottom: 20px; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 10px; max-height: 400px; overflow-y: auto;">
+            <!-- クエスト内容が入る -->
+        </div>
+        <button onclick="document.getElementById('questBoardOverlay').style.display='none'; player.state = PlayerState.IDLE;" style="padding: 10px 20px; background: #e63946; color: white; border: none; border-radius: 5px; cursor: pointer;">閉じる</button>
+    </div>
+
+    <!-- ファストトラベル UI -->
+    <div id="fastTravelOverlay" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 500px; background: rgba(20, 15, 10, 0.95); border: 2px solid #3b82f6; border-radius: 15px; padding: 20px; z-index: 1000; color: #fff; text-align: center; font-family: 'Noto Sans JP', sans-serif;">
+        <h2 style="color: #3b82f6; margin-bottom: 20px;">🌀 ダンジョン階層選択</h2>
+        <p style="margin-bottom: 20px; font-size: 14px; color: #aaa;">転移先の階層を選択してください。</p>
+        <div id="fastTravelList" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; max-height: 300px; overflow-y: auto; padding-right: 10px;">
+            <!-- ボタンが入る -->
+        </div>
+        <button onclick="document.getElementById('fastTravelOverlay').style.display='none'; player.state = PlayerState.IDLE; player.warping=false;" style="padding: 10px 20px; background: #e63946; color: white; border: none; border-radius: 5px; cursor: pointer;">キャンセル</button>
+    </div>
+
+    <!-- 鍛冶屋 UI -->
+    <div id="forgeOverlay" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 400px; background: rgba(20, 15, 10, 0.95); border: 2px solid #eab308; border-radius: 15px; padding: 20px; z-index: 1000; color: #fff; text-align: center; font-family: 'Noto Sans JP', sans-serif;">
+        <h2 style="color: #eab308; margin-bottom: 20px;">🔨 鍛冶屋</h2>
+        <div id="forgeStatus" style="margin-bottom: 20px; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 10px;">
+            <!-- ステータスが入る -->
+        </div>
+        <button id="btnUpgrade" style="padding: 10px 20px; background: #4ade80; color: #000; border: none; border-radius: 5px; cursor: pointer; margin-right: 10px; font-weight: bold;">強化する</button>
+        <button onclick="document.getElementById('forgeOverlay').style.display='none'; player.state = PlayerState.IDLE;" style="padding: 10px 20px; background: #e63946; color: white; border: none; border-radius: 5px; cursor: pointer;">立ち去る</button>
+    </div>
+
+</body>
+</html>

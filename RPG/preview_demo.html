@@ -1,0 +1,2031 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Abyss Delver: 迷宮都市の戦記 - プロトタイプ</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Outfit:wght@300;500;700&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0806;
+            --panel-bg: rgba(20, 15, 10, 0.85);
+            --accent-blue: #4facfe;
+            --accent-purple: #9d4edd;
+            --accent-green: #4ade80;
+            --accent-gold: #d4af37;
+            --accent-red: #e63946;
+            --text-main: #eaddcf;
+            --border-gold: #8a6d3b;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: var(--bg-dark);
+            background-image: radial-gradient(at 10% 20%, rgba(168, 85, 247, 0.1) 0px, transparent 50%), radial-gradient(at 90% 80%, rgba(56, 189, 248, 0.1) 0px, transparent 50%);
+            color: var(--text-main); font-family: 'Outfit', 'Noto Sans JP', sans-serif;
+            min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow-x: hidden; padding: 10px;
+        }
+
+        header { text-align: center; margin-bottom: 10px; }
+        h1 { font-family: 'Orbitron', sans-serif; font-size: 2rem; font-weight: 900; background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 2px; }
+        
+        .quest-guide {
+            background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 20px;
+            padding: 6px 20px; font-size: 0.85rem; color: #d8b4fe; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; font-weight: 500;
+        }
+
+        .main-container { display: flex; gap: 20px; max-width: 1100px; width: 100%; justify-content: center; align-items: flex-start; }
+
+        .game-panel {
+            position: relative; background: var(--panel-bg); backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 16px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5); display: flex; flex-direction: column; align-items: center;
+        }
+        canvas { border-radius: 12px; background-color: #0b0f19; box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.05); display: block; }
+
+        /* HUD */
+        .hud-bar { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr; width: 100%; gap: 10px; margin-top: 10px; background: rgba(0, 0, 0, 0.45); border-radius: 10px; padding: 10px 15px; border: 1px solid rgba(255, 255, 255, 0.05); }
+        .hud-item { display: flex; flex-direction: column; gap: 4px; align-items: center; }
+        .hud-item:not(:last-child) { border-right: 1px solid rgba(255, 255, 255, 0.1); }
+        .hud-label { font-size: 0.65rem; color: #94a3b8; font-family: 'Orbitron', sans-serif; }
+        .hud-value { font-weight: 700; display: flex; align-items: center; gap: 4px; font-size: 0.95rem; }
+        .meter-container { width: 100px; height: 8px; background: rgba(255, 255, 255, 0.1); border-radius: 4px; overflow: hidden; margin-top: 2px; }
+        .meter-fill { height: 100%; border-radius: 4px; transition: width 0.1s ease; }
+        .hp-fill { background: linear-gradient(90deg, #ef4444, #f87171); }
+        .mp-fill { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+        .xp-fill { background: linear-gradient(90deg, #10b981, #34d399); }
+        .gold-value { color: var(--accent-gold); font-family: 'Orbitron', sans-serif; }
+        
+        /* 鍵アイコンUI */
+        .key-slot { font-size: 1.1rem; filter: grayscale(1) brightness(0.4); transition: all 0.3s; margin: 0 2px; }
+        .key-slot.active { filter: grayscale(0) brightness(1.2) drop-shadow(0 0 4px currentColor); }
+        .key-start { color: var(--accent-blue); }
+        .key-forest { color: var(--accent-green); }
+        .key-crystal { color: var(--accent-purple); }
+        .key-temple { color: var(--accent-red); }
+
+        .control-panel { width: 300px; background: var(--panel-bg); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 15px; }
+        .panel-title { font-family: 'Orbitron', sans-serif; font-size: 0.8rem; font-weight: 700; border-bottom: 2px solid rgba(255, 255, 255, 0.1); padding-bottom: 4px; color: var(--accent-blue); margin-bottom: 8px; }
+        .key-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; margin-bottom: 6px; }
+        .key-cap { background: linear-gradient(180deg, #1e293b, #0f172a); border: 1px solid rgba(255, 255, 255, 0.2); border-bottom: 3px solid rgba(0, 0, 0, 0.6); border-radius: 4px; padding: 2px 6px; font-weight: 700; }
+        
+        /* スキルUI */
+        .skill-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+        .skill-box { background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 8px; display: flex; flex-direction: column; align-items: center; }
+        .skill-key { font-family: 'Orbitron'; color: var(--accent-gold); font-size: 0.9rem; font-weight: 700; margin-bottom: 4px; }
+        .skill-name { font-size: 0.65rem; color: #cbd5e1; }
+        .status-badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; text-align: center; width: 100%; }
+        .badge-active { background: rgba(16, 185, 129, 0.2); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.3); }
+
+        .toast { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(168, 85, 247, 0.4); color: white; padding: 8px 16px; border-radius: 20px; font-size: 0.85rem; font-weight: 700; box-shadow: 0 10px 25px rgba(0,0,0,0.6); opacity: 0; transition: opacity 0.2s, top 0.2s; z-index: 100; pointer-events: none; }
+        .toast.show { opacity: 1; top: 30px; }
+        .level-up-banner { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%) scale(0.5); font-family: 'Orbitron', sans-serif; font-size: 2.5rem; font-weight: 900; color: var(--accent-gold); opacity: 0; z-index: 10; transition: all 0.5s; pointer-events: none; }
+        .level-up-banner.show { opacity: 1; transform: translate(-50%, -50%) scale(1.0); }
+
+        .dialogue-overlay { position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); width: 560px; display: none; z-index: 300; }
+        .dialogue-overlay.show { display: block; }
+        .dialogue-box { background: rgba(11, 15, 30, 0.92); border: 2px solid var(--accent-blue); border-radius: 12px; padding: 18px 24px; }
+        .dialogue-name { font-weight: 700; color: var(--accent-blue); margin-bottom: 8px; font-size: 1rem; }
+        .dialogue-text { color: white; font-size: 0.9rem; line-height: 1.6; min-height: 40px; white-space: pre-wrap; }
+        
+        .shop-modal { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9); width: 380px; background: rgba(11, 15, 30, 0.95); border: 2px solid rgba(56, 189, 248, 0.4); border-radius: 20px; padding: 20px; z-index: 200; opacity: 0; pointer-events: none; transition: all 0.3s; }
+        .shop-modal.open { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1.0); }
+        .shop-item { display: flex; justify-content: space-between; align-items: center; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255,255,255,0.05); padding: 10px; border-radius: 10px; margin-bottom: 8px; }
+        .buy-btn { background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple)); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 6px 12px; border-radius: 8px; font-size: 0.75rem; font-weight: 700; cursor: pointer; }
+
+        .menu-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(10, 8, 5, 0.97); z-index: 400; display: none; padding: 30px; box-sizing: border-box; flex-direction: column; border-radius: 16px; opacity: 0; transition: opacity 0.3s; pointer-events: none; border: 2px solid var(--border-gold); }
+        .menu-overlay.open { display: flex; opacity: 1; pointer-events: auto; }
+        .menu-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid var(--border-gold); padding-bottom: 5px; margin-bottom: 15px; }
+        .menu-title { font-family: 'serif'; font-size: 1.8rem; font-weight: 700; color: var(--accent-gold); text-shadow: 1px 1px 4px #000; }
+        .menu-content { display: flex; gap: 20px; flex: 1; height: 100%; overflow: hidden; }
+        .menu-column { flex: 1; background: rgba(0,0,0,0.5); border-radius: 12px; padding: 15px; border: 1px solid var(--border-gold); overflow-y: auto; }
+        .menu-section-title { font-size: 1.1rem; font-weight: 700; color: var(--accent-gold); margin-bottom: 10px; border-bottom: 1px dashed var(--border-gold); padding-bottom: 5px; font-family: serif; text-shadow: 1px 1px 2px #000; }
+        .inv-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(212, 175, 55, 0.15); font-size: 0.85rem; }
+    </style>
+    <script>
+        // --- 添付画像ロード用 ---
+        const imgHeroFront = new Image(); imgHeroFront.src = 'hero_front.png';
+        const imgHeroBack = new Image(); imgHeroBack.src = 'hero_back.png';
+        const imgHeroLeft = new Image(); imgHeroLeft.src = 'hero_left.png';
+        const imgHeroRight = new Image(); imgHeroRight.src = 'hero_right.png';
+        const imgSlime = new Image(); imgSlime.src = 'slime.png';
+        const imgGuild = new Image(); imgGuild.src = 'guild_building.png';
+    </script>
+</head>
+<body>
+    <header>
+        <h1>Abyss Delver</h1>
+        <p class="subtitle">迷宮都市の戦記 - ハクスラRPG</p>
+    </header>
+
+    <div id="questGuide" class="quest-guide">
+        🧭 <span id="questText">クエスト: 目の前の【ホログラム】に近づき、Eキーで話を聞け！</span>
+    </div>
+
+    <div class="main-container">
+        <div class="game-panel">
+            <div id="toast" class="toast">メッセージ</div>
+            <div id="levelUpBanner" class="level-up-banner">LEVEL UP!</div>
+            <div id="dialogueOverlay" class="dialogue-overlay">
+                <div class="dialogue-box">
+                    <div id="dialogueName" class="dialogue-name">NPC</div>
+                    <div id="dialogueText" class="dialogue-text"></div>
+                    <div style="text-align:right; color:#fbbf24; font-size:0.8rem; margin-top:5px;">▶ Spaceキーで次へ</div>
+                </div>
+            </div>
+
+            <canvas id="gameCanvas" width="700" height="480"></canvas>
+            
+            <div id="shopModal" class="shop-modal">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:10px; margin-bottom:10px;">
+                    <span style="font-family:'Orbitron',sans-serif; font-size:1.1rem; font-weight:700; color:var(--accent-blue);">🔮 古代の強化碑石</span>
+                    <button onclick="closeShop()" style="background:none; border:none; color:#94a3b8; font-size:1.2rem; cursor:pointer;">×</button>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:15px; font-size:0.8rem;">
+                    <span color="#94a3b8">エネルギーを吸収し、能力を強化します。</span>
+                    <span id="shopGoldDisplay" style="color:var(--accent-gold); font-weight:700;">0 G</span>
+                </div>
+                <div class="shop-item">
+                    <div style="display:flex; flex-direction:column;"><span style="font-weight:700;">生命のルーン</span><span style="font-size:0.7rem; color:#94a3b8;">最大HPを0.5増加</span><span style="font-size:0.75rem; color:var(--accent-gold); font-weight:700;">💰 60 G</span></div>
+                    <button class="buy-btn" onclick="buyItem('hp', 60)">強化</button>
+                </div>
+                <div class="shop-item">
+                    <div style="display:flex; flex-direction:column;"><span style="font-weight:700;">摩擦歪曲の呪文</span><span style="font-size:0.7rem; color:#94a3b8;">ホバー(Shift)解放</span><span id="hoverPrice" style="font-size:0.75rem; color:var(--accent-gold); font-weight:700;">💰 100 G</span></div>
+                    <button id="hoverBuyBtn" class="buy-btn" onclick="buyItem('hover', 100)">解放</button>
+                </div>
+            </div>
+            <div id="soulDriveModal" class="shop-modal">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:10px; margin-bottom:10px;">
+                    <span style="font-family:'Orbitron',sans-serif; font-size:1.1rem; font-weight:700; color:var(--accent-purple);">⟁ SOUL DRIVE</span>
+                    <button onclick="closeSoulDrive()" style="background:none; border:none; color:#94a3b8; font-size:1.2rem; cursor:pointer;">×</button>
+                </div>
+                <div style="margin-bottom:15px; font-size:0.8rem; color:#94a3b8; display:flex; justify-content:space-between; align-items:center;">
+                    <span>左腕のデバイスからかつての仲間の「魂の波長（記憶）」をロードし、戦闘クラスを最適化します。</span>
+                    <span style="color:var(--accent-gold); font-weight:700;">記憶の欠片: <span id="memoryShardCount">0</span></span>
+                </div>
+                <button id="restoreVisionBtn" onclick="restoreVision()" class="buy-btn" style="width:100%; margin-bottom:15px; background:linear-gradient(135deg, #38bdf8, #818cf8); padding:8px; font-size:0.85rem;">🎥 ビジョンを復元する (欠片1消費)</button>
+                <div id="soulList"></div>
+            </div>
+
+            <div id="cookingModal" class="shop-modal">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:10px; margin-bottom:10px;">
+                    <span style="font-family:'Orbitron',sans-serif; font-size:1.1rem; font-weight:700; color:var(--accent-green);">🍖 酒場「迷宮亭」</span>
+                    <button onclick="closeCooking()" style="background:none; border:none; color:#94a3b8; font-size:1.2rem; cursor:pointer;">×</button>
+                </div>
+                <div style="margin-bottom:15px; font-size:0.8rem; color:#94a3b8;">
+                    素材を消費して料理を作り、一時的なステータスアップの【自炊バフ】を得る。※ゲームオーバーでリセット
+                </div>
+                
+                <div class="shop-item">
+                    <div style="display:flex; flex-direction:column;"><span style="font-weight:700; color:white;">スライムゼリー</span><span style="font-size:0.7rem; color:#94a3b8;">最大HP+20 (必要: 粘液x3)</span></div>
+                    <button class="buy-btn" onclick="cookFood('jelly')" style="background:var(--accent-blue);">調理</button>
+                </div>
+                <div class="shop-item">
+                    <div style="display:flex; flex-direction:column;"><span style="font-weight:700; color:white;">風のスープ</span><span style="font-size:0.7rem; color:#94a3b8;">SPD+30 (必要: 結晶x2)</span></div>
+                    <button class="buy-btn" onclick="cookFood('soup')" style="background:var(--accent-green);">調理</button>
+                </div>
+                <div class="shop-item">
+                    <div style="display:flex; flex-direction:column;"><span style="font-weight:700; color:white;">鉄壁の串焼き</span><span style="font-size:0.7rem; color:#94a3b8;">DEF+3 (必要: 鉄x2, 粘液x1)</span></div>
+                    <button class="buy-btn" onclick="cookFood('skewer')" style="background:var(--accent-red);">調理</button>
+                </div>
+            </div>
+
+            <div id="mainMenuOverlay" class="menu-overlay">
+                <div class="menu-header">
+                    <div class="menu-title">STATUS & MENU</div>
+                    <div style="color:#94a3b8; font-size:0.9rem;">[Tab] / [Esc] 閉じる</div>
+                </div>
+                <div class="menu-content">
+                    <div class="menu-column">
+                        <div class="menu-section-title">👤 ソウル・ステータス</div>
+                        <div id="menuSoulName" style="font-size:1.5rem; font-weight:700; color:var(--accent-purple); margin-bottom:10px;">⚔️ 剣士アレス</div>
+                        <div class="inv-item"><span>LEVEL</span><span id="menuLv" style="color:var(--accent-blue); font-weight:700;">1</span></div>
+                        <div class="inv-item"><span>HP</span><span id="menuHp">100 / 100</span></div>
+                        <div class="inv-item"><span>MP</span><span id="menuMp">50 / 50</span></div>
+                        <div class="inv-item"><span>ATK</span><span id="menuAtk">15</span></div>
+                        <div class="inv-item"><span>DEF</span><span id="menuDef">5</span></div>
+                        <div class="inv-item"><span>SPD</span><span id="menuSpd">220</span></div>
+                        
+                        <div class="menu-section-title" style="margin-top:30px;">🎮 操作方法</div>
+                        <div class="key-row"><span class="action-desc">移動</span><span class="key-cap">WASD</span></div>
+                        <div class="key-row"><span class="action-desc">通常攻撃</span><span class="key-cap">J</span></div>
+                        <div class="key-row"><span class="action-desc">インタラクト</span><span class="key-cap">E</span></div>
+                        <div class="key-row"><span class="action-desc">メニュー開閉</span><span class="key-cap">Tab</span></div>
+                        <div class="key-row"><span class="action-desc">ソウル・ドライブ</span><span class="key-cap">C</span></div>
+                        <div class="key-row"><span class="action-desc">スキル</span><span class="key-cap">I O K L</span></div>
+                    </div>
+                    <div class="menu-column">
+                        <div class="menu-section-title">⚔️ アクティブスキル</div>
+                        <div id="menuSkills" style="display:flex; flex-direction:column; gap:5px;"></div>
+
+                        <div class="menu-section-title" style="margin-top:30px;">🎒 インベントリ</div>
+                        <div class="inv-item"><span>所持金</span><span id="menuGold" style="color:var(--accent-gold); font-weight:700;">0 G</span></div>
+                        <div class="inv-item"><span>鍵</span><span id="menuKeys">なし</span></div>
+                        <div style="margin-top:10px;" id="menuInventoryList"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="hud-bar">
+                <div class="hud-item" style="cursor:pointer;" onclick="openSoulDrive()"><span class="hud-label">ソウル(Cキー)</span><div class="hud-value"><span id="currentSoulName" style="color:var(--accent-purple); font-weight:700; font-size:0.8rem;">⚔️ 剣士アレス</span></div></div>
+                <div class="hud-item"><span class="hud-label">HP (体力)</span><div class="hud-value" style="flex-direction:column; gap:2px;"><span id="hpText" style="font-size:0.8rem;">100/100</span><div class="meter-container"><div id="hpBar" class="meter-fill hp-fill" style="width:100%;"></div></div></div></div>
+                <div class="hud-item"><span class="hud-label">MP (魔力)</span><div class="hud-value" style="flex-direction:column; gap:2px;"><span id="mpText" style="font-size:0.8rem;">50/50</span><div class="meter-container"><div id="mpBar" class="meter-fill mp-fill" style="width:100%;"></div></div></div></div>
+                <div class="hud-item"><span class="hud-label">STATUS</span><div class="hud-value" style="flex-direction:column; gap:2px; font-size:0.75rem; color:#cbd5e1;"><span id="atkDisplay">ATK: 15</span><span id="defDisplay">DEF: 5</span></div></div>
+                <div class="hud-item"><span class="hud-label">LEVEL / EXP</span><div class="hud-value" style="flex-direction:column; gap:2px;"><span id="levelDisplay" style="background:var(--accent-blue); padding:0 6px; border-radius:10px; font-size:0.7rem;">LV 1</span><div class="meter-container" style="width:70px;"><div id="xpBar" class="meter-fill xp-fill" style="width:0%;"></div></div></div></div>
+                <div class="hud-item"><span class="hud-label">GOLD</span><div class="hud-value"><span id="goldDisplay" class="gold-value">0 G</span></div></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const toast = document.getElementById('toast');
+
+        const TILE_SIZE = 32;
+        // MAP_COLS, MAP_ROWSは後で動的にlet宣言される
+        const COLLISION_RADIUS = 12;
+        const SAFE_MARGIN = 2;
+
+        const PlayerState = { IDLE: 'idle', WALK: 'walk', ATTACK: 'attack', DASH: 'dash', HOVER: 'hover', DIALOGUE: 'dialogue' };
+
+        const souls = {
+            'Ares': { id: 'Ares', name: '剣士アレス', icon: '⚔️', level: 1, xp: 0, xpNeeded: 80, maxHp: 100, maxMp: 50, atk: 15, def: 5, spd: 220, unlocked: true },
+            'Cyan': { id: 'Cyan', name: '盗賊シアン', icon: '🗡️', level: 1, xp: 0, xpNeeded: 80, maxHp: 60, maxMp: 70, atk: 25, def: 2, spd: 300, unlocked: true }, // 初期解放テスト用
+            'Lilith':{ id: 'Lilith', name: '魔法使いリリス', icon: '🔮', level: 1, xp: 0, xpNeeded: 80, maxHp: 50, maxMp: 120, atk: 40, def: 1, spd: 180, unlocked: false }
+        };
+
+        const player = {
+            x: 0, y: 0, vx: 0, vy: 0, angle: 0, 
+            currentSoulId: 'Ares',
+            level: souls['Ares'].level, xp: souls['Ares'].xp, xpNeeded: souls['Ares'].xpNeeded, gold: 0, weaponLevel: 1, armorLevel: 1,
+            keys: { start: false, forest: false, crystal: false, temple: false },
+            hp: souls['Ares'].maxHp, maxHp: souls['Ares'].maxHp,
+            mp: souls['Ares'].maxMp, maxMp: souls['Ares'].maxMp,
+            atk: souls['Ares'].atk, def: souls['Ares'].def, spd: souls['Ares'].spd,
+            state: PlayerState.IDLE, dashTimer: 0, attackTimer: 0, warping: false,
+            activeQuest: null, questProgress: 0,
+            inventory: {},
+            foodBuffs: { maxHp: 0, atk: 0, def: 0, spd: 0 },
+            skills: {
+                I: { name: 'Dash', cd: 0, maxCd: 3, mp: 5 },
+                O: { name: 'Spin', cd: 0, maxCd: 5, mp: 10 },
+                K: { name: 'Provoke', cd: 0, maxCd: 10, mp: 15 },
+                L: { name: 'Quake', cd: 0, maxCd: 20, mp: 30 }
+            }
+        };
+
+        const camera = { x: 0, y: 0 };
+        const keys = {};
+
+        // === 3x3 グリッドによる超広大マップ構築 ===
+        // === シーン（マップ）管理システム ===
+        const themes = {
+            city: { name: "迷宮都市アビス・エッジ", floor: '#94a3b8', wall: '#78350f', border: '#475569', pit: '#1e293b', spike: '#000', npc: '#fbbf24' },
+            guild: { name: "冒険者ギルド", floor: '#d2b48c', wall: '#8b4513', border: '#cd853f', pit: '#000', spike: '#000', npc: '#fbbf24' },
+            dungeon: { name: "アビス第一階層", floor: '#0f172a', wall: '#1e293b', border: '#38bdf8', pit: '#020617', spike: '#ef4444', npc: '#38bdf8' },
+            crystal: { name: "魔導クリスタル鉱脈", floor: '#1e1b4b', wall: '#312e81', border: '#c084fc', pit: '#020617', spike: '#8b5cf6', npc: '#c084fc' },
+            dungeon_f2: { name: "第2階層：巨石と機構の試練", floor: '#0f172a', wall: '#1e293b', border: '#f59e0b', pit: '#020617', spike: '#ef4444', npc: '#38bdf8' },
+            dungeon_f3: { name: "第3階層：機巧と焦燥の回廊", floor: '#0c0a09', wall: '#292524', border: '#22d3ee', pit: '#020617', spike: '#ef4444', npc: '#38bdf8' },
+            dungeon_f4: { name: "第4階層：閉ざされた観測所", floor: '#030712', wall: '#111827', border: '#6366f1', pit: '#000', spike: '#ef4444', npc: '#818cf8' },
+            dungeon_f5: { name: "第5階層：深淵の共鳴炉", floor: '#0c0a09', wall: '#1c1917', border: '#f43f5e', pit: '#020617', spike: '#ef4444', npc: '#fb7185' },
+            dungeon_f6: { name: "第6階層：浸食された緑廊", floor: '#052e16', wall: '#14532d', border: '#4ade80', pit: '#022c22', spike: '#ef4444', npc: '#86efac' },
+            dungeon_f7: { name: "第7階層：木漏れ日と胞子の迷宮", floor: '#1a2e05', wall: '#365314', border: '#a3e635', pit: '#1a2e05', spike: '#c084fc', npc: '#bef264' }
+        };
+
+        const sceneData = {
+            'city': {
+                width: 80, height: 60,
+                                tiles: [
+                    "22222222222222222222222222222222222222222222222222222222222222222222222222222222",
+                    "22222222222222222222222222222222222222222222222222222222222222222222222222222222",
+                    "22222222222222222222222222222222222222222222222222222222222222222222222222222222",
+                    "22222222222222222222222222222222222222222222222222222222222222222222222222222222",
+                    "22222222222222222222222222222222222222221222222222222222222222222222222222222222",
+                    "22222222222222222222222222222222211111110111111122222222222222222222222222222222",
+                    "22222222222222222222222222222211100000000000000011122222222222222222222222222222",
+                    "22222222222222222222222222221110000000000000000000111222222222222222222222222222",
+                    "22222222222222222222222222211000000000000000000000001122222222222222222222222222",
+                    "22222222222222222222222221100000000000000000000000000011222222222222222222222222",
+                    "22222222222222222222222210000000000000000000000000000000122222222222222222222222",
+                    "22222222222222222222222100000000000000000000000000000000012222222222222222222222",
+                    "22222222222222222222221000000000000000000000000000000000001222222222222222222222",
+                    "22222222222222222222210000000000000000000000000000000000000122222222222222222222",
+                    "22222222222222222222100000000000000000000000000000000000000012222222222222222222",
+                    "2222222222222222222100000000000000000000i000000000000000000001222222222222222222",
+                    "22222222222222222221000000000000000000000000000000000000000001222222222222222222",
+                    "22222222222222222210000000000000000000000000000000000000000000122222222222222222",
+                    "22222222222222222110000000000000000000000000000000000000000000112222222222222222",
+                    "22222222222222222100000000000000000000000000000000000000000000012222222222222222",
+                    "2222222222222222110000000d000000000000000000000000000000000000011222222222222222",
+                    "22222222222222221000000000000000000000000000000000000000000000001222222222222222",
+                    "22222222222222221000000000000000000000000000000000000000000000001222222222222222",
+                    "22222222222222210000000000000000000000000000000000000000000000000122222222222222",
+                    "22222222222222210000000000000000000000000000000000000000000000000122222222222222",
+                    "22222222222222210000000000000000000000000000000000000000000000000122222222222222",
+                    "22222222222222210000000000000000000000000000000000000000000000000122222222222222",
+                    "22222222222222210000000000000000000000000000000000000000000000000122222222222222",
+                    "22222222222222210000000000000000000000000000000000000000000000000122222222222222",
+                    "22221111111111110000000000000000000000001000000000000000000000000111111111112222",
+                    "222200000000000000000000000000000000000151000000000000000000000000000000000c2222",
+                    "22221111111111110000000000000000000000001000000000000000000000000111111111112222",
+                    "22222222222222210000000000000000000000000000000000000000000000000122222222222222",
+                    "22222222222222210000000000000000000000000000000000000000000000000122222222222222",
+                    "22222222222222210000000000000000000000000000000000000000000000000122222222222222",
+                    "222222222222222100000000000000e000000000000000000000000j000000000122222222222222",
+                    "22222222222222210000000000000000000000000000000000000000000000000122222222222222",
+                    "22222222222222210000000000000000000000000000000000000000000000000122222222222222",
+                    "22222222222222221000000000000000000000000000000000000000000000001222222222222222",
+                    "22222222222222221000000000000000000000000000000000000000000000001222222222222222",
+                    "2222222222222222110000000g000000000000000000000000000000000000011222222222222222",
+                    "22222222222222222100000000000000000000000000000000000000000000012222222222222222",
+                    "22222222222222222110000000000000000000000000000000000000000000112222222222222222",
+                    "22222222222222222210000000000000000000000000000000000000000000122222222222222222",
+                    "22222222222222222221000000000000000000000000000000000000000001222222222222222222",
+                    "2222222222222222222100000000000000000000f000000000000000000001222222222222222222",
+                    "22222222222222222222100000000000000000000000000000000000000012222222222222222222",
+                    "22222222222222222222210000000000000000000000000000000000000122222222222222222222",
+                    "22222222222222222222221000000000000000000000000000000000001222222222222222222222",
+                    "22222222222222222222222100000000000000000000000000000000012222222222222222222222",
+                    "22222222222222222222222210000000000000000000000000000000122222222222222222222222",
+                    "22222222222222222222222221100000000000000000000000000011222222222222222222222222",
+                    "22222222222222222222222222211000000000000000000000001122222222222222222222222222",
+                    "22222222222222222222222222221110000000000000000000111222222222222222222222222222",
+                    "22222222222222222222222222222211100000000000000011122222222222222222222222222222",
+                    "22222222222222222222222222222222211111110111111122222222222222222222222222222222",
+                    "22222222222222222222222222222222222222221222222222222222222222222222222222222222",
+                    "22222222222222222222222222222222222222222222222222222222222222222222222222222222",
+                    "22222222222222222222222222222222222222222222222222222222222222222222222222222222",
+                    "22222222222222222222222222222222222222222222222222222222222222222222222222222222",
+                ],
+                npcs: [
+                    { c: 40, r: 28, id: 'guide', name: "街の案内人" }
+                ],
+                enemies: [], chests: [],
+                getTheme: () => themes.city
+            },
+            'guild': {
+                width: 20, height: 15,
+                tiles: [
+                    "11111111111111111111",
+                    "10000000000000000001",
+                    "10000111100111100001",
+                    "10000100000000100001",
+                    "10000100060000100001",
+                    "10000111100111100001",
+                    "10000000000000000001",
+                    "10000000000000000001",
+                    "10000005000000000001",
+                    "10000000000000000001",
+                    "10000000000000000001",
+                    "10000000000000000001",
+                    "10000000000000000001",
+                    "10000000000000000001",
+                    "11111111111211111111"
+                ],
+                portals: [
+                    { c: 10, r: 14, dest: 'city', sc: 40, sr: 16 }
+                ],
+                npcs: [
+                    { c: 9, r: 4, id: 'guildmaster', name: "ギルドマスター" }
+                ],
+                enemies: [], chests: [],
+                getTheme: () => themes.guild
+            },
+            'dungeon_f1': {
+                width: 80, height: 80,
+                tiles: [
+                    "11111111111111111111111111111111111111111111111111111111111111111111111111111111",
+                    "11111111111111111111111111111100000000000000000000111111111111111111111111111111",
+                    "11111111111111111111111111111100000000000000000000111111111111111111111111111111",
+                    "11111111111111111111111111111100000000000000000000111111111111111111111111111111",
+                    "11111111111111111111111111111100000000000000000000111111111111111111111111111111",
+                    "11111111111111111111111111111100000000000000000000111111111111111111111111111111",
+                    "11111111110000000000111111111100000000000000000000111111111111111111111111111111",
+                    "11111111110000000000111111111100000000000000000000111111111111111111111111111111",
+                    "11111111110000000000000000000000000000000000000000111111111111111111111111111111",
+                    "11111111110000000000000000000000000000000000000000111111111111111111111111111111",
+                    "11111111110000000000000000000000000000000000000000111111111111111111111111111111",
+                    "11111111110000000000000000000000000000000000000000111111111111111111111111111111",
+                    "11111111110000000000111111111100000000000000000000111111111111111111111111111111",
+                    "11111111110000000000111111111100000000000000000000111111111111100000000000000111",
+                    "11111111100000000000011111111100000000000000000000111111111111100000000000000111",
+                    "11111111100000000000011111111111111110000001111111111111111111100000000000000111",
+                    "11111111100000000000011111111111111000000000011111100000000111100000000000000111",
+                    "11111111100000000000011111111111111000000000011111100000000111100000000000000111",
+                    "11111111100000000000011111111111111000000000000000000000000000000000000000000111",
+                    "11111111100000000000011111111111111000000000000000000000000000000000000000000111",
+                    "11111111100000000000011111111111111000000000000000000000000000000000000000000111",
+                    "11111111100000000000011111111111111000000000000000000000000000000000000000000111",
+                    "11111111100000000000011111111111111000000000011111100000000111100000000000000111",
+                    "11111111100000000000011111111111111000000000011111100000000111100000000000000111",
+                    "11111111100000000000011111111111111111000011111111111111111111100000000000000111",
+                    "11111111100000000000011111111111111111000011111111111111111111100000000000000111",
+                    "11111111111110000111111111111111111111000011111111111111111111100000000000000111",
+                    "11111111111110000111111111111111111111000011111111111111111111111100001111111111",
+                    "11111111111110000111111111111111111111000011111111111111111111111100001111111111",
+                    "11111111100000000000011111111111111111444411111111111111111111111100001111111111",
+                    "11111111100000000000011111111111000000000000000011111111111100000000001111111111",
+                    "11111111100000000000011111111111000000000000000011111111111100000000001111111111",
+                    "11111111100000000000011111111111000000000000000011111111111100000000001111111111",
+                    "11111111100000000000000000000000000000000000000000800000000000000000001111111111",
+                    "11111111100000000000000000000000000000000000000000800000000000000000001111111111",
+                    "11111111100000000000000000000000000000000000000000800000000000000000001111111111",
+                    "11111111100000000000000000000000000000000000000000800000000000000000001111111111",
+                    "11111111100000000000010000001111000000000000000011111111111100000000001111111111",
+                    "11111111100000000000010000001111000000000000000011111111111100000000001111111111",
+                    "11111111100000000000010000001111000000000000000011111111111100000000001111111111",
+                    "11111111100000000000010000001111000000000000000011111111111111111111111111111111",
+                    "11111111111111111111110000001111111111000011111111111111111111111111111111111111",
+                    "11111111111111111111110000001111111111000011111111111111111111111111111111111111",
+                    "11111111111111111111110000001111111111000011111111111111111111111111111111111111",
+                    "11111111111111111111110000001111111111000011111111111111111111111111111111111111",
+                    "11111111111111111111110000001111111111000011111111111111111111111111111111111111",
+                    "11111111111111111111110000001111111111000011111111111111111111111111111111111111",
+                    "11111111111111111111110000001111111111000011111111111111111111111111111111111111",
+                    "11111111111111111111110000001111111111000011111111111111111111111111111111111111",
+                    "11111111111111111111110000001111111111000011111111111111111111111111111111111111",
+                    "11111111111111111111110000001111110000000000001111111111111111111111111111111111",
+                    "11111111111111111111110000001111110000000000001111111111111111111111111111111111",
+                    "11111111111111111111110000001111110000000000001110000001111111111111111111111111",
+                    "11111111111111111111110000000090000000000000001110000001111111111111111111111111",
+                    "11111111111111111111110000000090000000000000001110000001111111111111111111111111",
+                    "11111111111111111111111111100090000000000000001110000001111111111111111111111111",
+                    "11111111111111111111111111100090000000000000001110000001111111111111111111111111",
+                    "11111111111111111111111111111111110000000000001110000001111111111111111111111111",
+                    "11111111111111111111111111111111110000000000001111111111111111111111111111111111",
+                    "11111111111111111111111111111111110000000000001111111111111111111111111111111111",
+                    "11111111111111111111111111111111111111000011111111111111111111111111111111111111",
+                    "11111111111111111111111111111111111111000011111111111111111111111111111111111111",
+                    "11111111111111111111111111111111111111000011111111111111111111111111111111111111",
+                    "11111111111111111111111111111111111111000011111111111111111111111111111111111111",
+                    "11111111111111111111111111111111111111000011111111111111111111111111111111111111",
+                    "11111111111111111111111111111111111111000011111111111111111111111111111111111111",
+                    "11111111111111111111111111111111111111000011111111111111111111111111111111111111",
+                    "11111111111111111111111111111111111111000011111111111111111111111111111111111111",
+                    "11111111111111111111111111111111111111000011111111111111111111111111111111111111",
+                    "11111111111111111111111111111111111111000011111111111111111111111111111111111111",
+                    "11111111111111111111111111111111111111000011111111111111111111111111111111111111",
+                    "11111111111111111111111111111111111000000000011111111111111111111111111111111111",
+                    "11111111111111111111111111111111111000000000011111111111111111111111111111111111",
+                    "11111111111111111111111111111111111000000000011111111111111111111111111111111111",
+                    "11111111111111111111111111111111111000000000011111111111111111111111111111111111",
+                    "11111111111111111111111111111111111000000000011111111111111111111111111111111111",
+                    "1111111111111111111111111111111111100000c000011111111111111111111111111111111111",
+                    "11111111111111111111111111111111111000000000011111111111111111111111111111111111",
+                    "11111111111111111111111111111111111000000000011111111111111111111111111111111111",
+                    "11111111111111111111111111111111111111111111111111111111111111111111111111111111",
+                ],
+                portals: [
+                    { c: 40, r: 76, dest: 'city', sc: 74, sr: 30 }
+                ],
+                npcs: [],
+                enemies: [
+                    { c: 39, r: 54, type: 'slime' }, { c: 41, r: 56, type: 'slime' },
+                    { c: 50, r: 55, type: 'slime' },
+                    { c: 70, r: 20, type: 'mini_boss' },
+                    { c: 13, r: 19, type: 'bat' }, { c: 17, r: 21, type: 'bat' }, { c: 15, r: 20, type: 'bat' },
+                    { c: 68, r: 30, type: 'skeleton' }, { c: 66, r: 32, type: 'skeleton' },
+                    { c: 40, r: 8, type: 'boss' }
+                ],
+                chests: [
+                    { c: 54, r: 55, opened: false, keyId: 'gold', color: '#fbbf24' },
+                    { c: 15, r: 10, opened: false, keyId: 'start', color: '#38bdf8' },
+                    { c: 72, r: 18, opened: false, keyId: 'forest', color: '#10b981' },
+                    { c: 15, r: 35, opened: false, keyId: 'crystal', color: '#9d4edd' }
+                ],
+                getTheme: () => themes.dungeon
+            },
+            'dungeon_f2': {
+                width: 60, height: 60,
+                tiles: [
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "111111111111111111110000000000000000000011111111111111111111",
+                    "111111111111111111110000000000000000000011111111111111111111",
+                    "111111111111111111110000000000000000000011111111111111111111",
+                    "111111111111111111110000000000000000000011111111111111111111",
+                    "111111111111111111110000000000000000000011111111111111111111",
+                    "111111111111111111110000000000000000000011111111111111111111",
+                    "111111111111111111110000000000000000000011111111111111111111",
+                    "111111111111111111110000000000000000000011111111111111111111",
+                    "111111111111111111110000000000000000000011111111111111111111",
+                    "111111111111111111110000000000000000000011111111111111111111",
+                    "111111111111111111110000000000000000000011111111111111111111",
+                    "111111111111111111110000000000000000000011111111111111111111",
+                    "111111111111111111110000000044440000000011111111111111111111",
+                    "111111111111111111110000000000000000000011111111111111111111",
+                    "111111111111111111110000002200002200000011111111111111111111",
+                    "111111111111111111110000002222222200000011111111111111111111",
+                    "111111111111111111110000002222222200000011111111111111111111",
+                    "111111111111111111110000002222222200000011111111111111111111",
+                    "111111111100000000000000000000000000000000000000001111111111",
+                    "111111111100000000000000000000000000000000000000001111111111",
+                    "110000000000000000000000000000000000000000000000000000000011",
+                    "110000000000000000000000000000000000000000000000000000000011",
+                    "110000000000000000110000000000000000000011000000000000000011",
+                    "110000000000000000110000000000000000000011000000000000000011",
+                    "110000000000000000111111111111111111111111000000000000000011",
+                    "110000000000000000111111111111111111111111000000000000000011",
+                    "110000000000000000111111111111111111111111000000000000000011",
+                    "110000000000000000111111111111111111111111000000000000000011",
+                    "110000000000000000111111111111111111111111000000000000000011",
+                    "110000000000000000111111111111111111111111000000000000000011",
+                    "110000000000000000111111111111111111111111000000000000000011",
+                    "110000000000000000111111111111111111111111000000000000000011",
+                    "110000000000000000111100000000000000001111000000000000000011",
+                    "110000000000000000111100000000000000001111000000000000000011",
+                    "110000000000000000111100000000000000001111000000000000000011",
+                    "110000000000000000111100000000000000001111000000000000000011",
+                    "111111110000000000000000000000000000000000000000000011111111",
+                    "111111110000000000000000000000000000000000000000000011111111",
+                    "111111110000000000000000000000000000000000000000000011111111",
+                    "111111110000000000000000000000000000000000000000000011111111",
+                    "111111111111111111111100000000000000001111111111111111111111",
+                    "111111111111111111111100000000000000001111111111111111111111",
+                    "111111111111111111111100000000000000001111111111111111111111",
+                    "111111111111111111111100000000000000001111111111111111111111",
+                    "111111111111111111111111111100001111111111111111111111111111",
+                    "111111111111111111111111111100001111111111111111111111111111",
+                    "111111111111111111111111111100001111111111111111111111111111",
+                    "111111111111111111111111111100001111111111111111111111111111",
+                    "111111111111111111111111111100001111111111111111111111111111",
+                    "111111111111111111111111100000000001111111111111111111111111",
+                    "111111111111111111111111100000000001111111111111111111111111",
+                    "111111111111111111111111100000000001111111111111111111111111",
+                    "111111111111111111111111100000000001111111111111111111111111",
+                    "111111111111111111111111100000000001111111111111111111111111",
+                    "111111111111111111111111100000000001111111111111111111111111",
+                    "111111111111111111111111100000000001111111111111111111111111",
+                    "111111111111111111111111100000000001111111111111111111111111",
+                    "111111111111111111111111111111111111111111111111111111111111"
+                ],
+                portals: [
+                    { c: 30, r: 55, dest: 'city', sc: 40, sr: 56 }
+                ],
+                npcs: [],
+                enemies: [
+                    { c: 10, r: 28, type: 'skeleton' }, { c: 12, r: 32, type: 'skeleton' },
+                    { c: 48, r: 28, type: 'slime' }, { c: 52, r: 30, type: 'slime' }, { c: 50, r: 32, type: 'slime' },
+                    { c: 25, r: 20, type: 'bat' }, { c: 35, r: 20, type: 'bat' },
+                    { c: 30, r: 8, type: 'boss' }
+                ],
+                chests: [
+                    { c: 8, r: 26, opened: false, keyId: 'start', color: '#38bdf8' },
+                    { c: 52, r: 26, opened: false, keyId: 'gold', color: '#fbbf24' }
+                ],
+                getTheme: () => themes.dungeon_f2
+            },
+            'dungeon_f3': {
+                width: 60, height: 60,
+                tiles: [
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "111111111111111111110000000000000000000011111111111111111111",
+                    "111111111111111111110000000000000000000011111111111111111111",
+                    "111111111111111111110000000000000000000011111111111111111111",
+                    "111111111111111111110000000000000000000011111111111111111111",
+                    "111111111111111111110000000000000000000011111111111111111111",
+                    "111111111111111111110000000000000000000011111111111111111111",
+                    "111111111111111111110000000000000000000011111111111111111111",
+                    "111111111111111111110000000000000000000011111111111111111111",
+                    "111111111111111111110000000000000000000011111111111111111111",
+                    "111111111111111111110000000000000000000011111111111111111111",
+                    "111111111111111111110000000000000000000011111111111111111111",
+                    "111111111111111111110000000000000000000011111111111111111111",
+                    "111111111111111111110000000000000000000011111111111111111111",
+                    "111111111111111111110000000000000000000011111111111111111111",
+                    "111111111111111111111111111144441111111111111111111111111111",
+                    "111111111111111111111111111100001111111111111111111111111111",
+                    "111111111111111111111111000000000000111111111111111111111111",
+                    "111111111111111111111111000000000000111111111111111111111111",
+                    "111111111111111111111111000000000000111111111111111111111111",
+                    "11111111111111111111111100aaaaaaaa00111111111111111111111111",
+                    "11111111111111111111111100aaaaaaaa00111111111111111111111111",
+                    "11111111111111111111111100aaaaaaaa00111111111111111111111111",
+                    "11111111111100000000000000aaaaaaaa00000000000000111111111111",
+                    "11111111111100000000000000aaaaaaaa00000000000000111111111111",
+                    "11110000000000000000000000aaaaaaaa00000000000000000000001111",
+                    "111100000000000000000000000000000000000000000000000000001111",
+                    "111100000000000000001111111100001111111100000000000000001111",
+                    "111100aaaa00000000001111111100001111111100000000000000001111",
+                    "111100aaaa00000000001111111100001111111100000000000000001111",
+                    "111100aaaa00000000001111111100001111111100000000000000001111",
+                    "111100aaaa00000000001111111100001111111100000000000000001111",
+                    "111100aaaa00000000001111111100001111111100000333333000001111",
+                    "111100aaaa00000000001111111100001111111100000333333000001111",
+                    "111100aaaa00000000001111111100001111111100000333333000001111",
+                    "111100aaaa00000000001111111100001111111100000333333000001111",
+                    "111100aaaa00000000001111111111111111111100000333333000001111",
+                    "111100aaaa00000000001111111111111111111100000333333000001111",
+                    "111100aaaa00000000001100000000000000001100000000000000001111",
+                    "111100aaaa00000000001100000000000000001100000000000000001111",
+                    "111100aaaa00000000000000000000000000000000000000000000001111",
+                    "111100aaaa00000000000000000000000000000000000000000000001111",
+                    "111100000000000000000000000000000000000000000000000000001111",
+                    "111100000000000000000000000000000000000000000000000000001111",
+                    "111100000000000000001100000000000000001100000000000000001111",
+                    "111111111111111111111100000000000000001111111111111111111111",
+                    "111111111111111111111111111100001111111111111111111111111111",
+                    "111111111111111111111111111100001111111111111111111111111111",
+                    "111111111111111111111111111100001111111111111111111111111111",
+                    "111111111111111111111111111100001111111111111111111111111111",
+                    "111111111111111111111111111100001111111111111111111111111111",
+                    "111111111111111111111111100000000001111111111111111111111111",
+                    "111111111111111111111111100000000001111111111111111111111111",
+                    "111111111111111111111111100000000001111111111111111111111111",
+                    "111111111111111111111111100000000001111111111111111111111111",
+                    "111111111111111111111111100000000001111111111111111111111111",
+                    "111111111111111111111111100000000001111111111111111111111111",
+                    "111111111111111111111111100000000001111111111111111111111111",
+                    "111111111111111111111111100000000001111111111111111111111111",
+                    "111111111111111111111111111111111111111111111111111111111111"
+                ],
+                portals: [
+                    { c: 30, r: 55, dest: 'city', sc: 40, sr: 56 }
+                ],
+                npcs: [],
+                enemies: [
+                    { c: 10, r: 30, type: 'bat' }, { c: 14, r: 32, type: 'bat' },
+                    { c: 46, r: 30, type: 'slime' }, { c: 48, r: 34, type: 'slime' }, { c: 50, r: 32, type: 'slime' },
+                    { c: 28, r: 22, type: 'skeleton' }, { c: 32, r: 22, type: 'skeleton' },
+                    { c: 30, r: 8, type: 'boss' }
+                ],
+                chests: [{ c: 10, r: 28, opened: false, keyId: 'start', color: '#38bdf8' }
+                ],
+                getTheme: () => themes.dungeon_f3
+            },
+            'dungeon_f4': {
+                width: 50, height: 50,
+                tiles: [
+                    "11111111111111111111111111111111111111111111111111",
+                    "11111111111111100000000000000000000111111111111111",
+                    "11111111111111100000000000000000000111111111111111",
+                    "11111111111111100000000000000000000111111111111111",
+                    "11111111111111100000000000000000000111111111111111",
+                    "11110000000000000000000000000000000000000000001111",
+                    "11110000000000000000000000000000000000000000001111",
+                    "11110003333330000000000000000000000000000000001111",
+                    "11110003333330000000000000000000000000000000001111",
+                    "11110003333330001111111111111111110000000000001111",
+                    "1111000333w33000111111111111111111000000w000001111",
+                    "11110003333330001111111111111111110000000000001111",
+                    "11110003333330001111111111111111110000000000001111",
+                    "11110000000000001111111111111111110000000000001111",
+                    "11110000000000001111111111111111110000000000001111",
+                    "11111111111111111111111111111111111111111111111111",
+                    "11111111111111111111100000000000000000011111111111",
+                    "11111111111111111111100000000000000000011111111111",
+                    "11111111111111111111100000000000000000011111111111",
+                    "11111111111111111111100000000000000000011111111111",
+                    "11111111111111111111100000000000000000011111111111",
+                    "11111111111111111111100000000000000000011111111111",
+                    "11111111111111111111100000000000000000011111111111",
+                    "11100000000000000111100000000000000000011111111111",
+                    "11100000000000000111100000000000000000011111111111",
+                    "1110000000000000011110w00w00w00w00w000011111111111",
+                    "11100000000000000111100000000000000000011111111111",
+                    "11100000000000000111100000000000000000011111111111",
+                    "11100000000000000111100000000000000000011111111111",
+                    "11100000000000000111100000000000000000011111111111",
+                    "1110000000w000000111100000000000000000011111111111",
+                    "11100000000000000111100000000000000000011111111111",
+                    "11100000000000000111100000000000000000011111111111",
+                    "11100000000000000111100000000000000000011111111111",
+                    "11100000000000000111111111111111111111111111111111",
+                    "11100000000000000111111111111111111000000000011111",
+                    "11100000000000000111111111111111111000000000011111",
+                    "11111111111111111111111111111111111000000000011111",
+                    "11111111111111111111111111111111111000000000011111",
+                    "11111111111111111111111111111111111000000000011111",
+                    "1111111111111111111111111111111111100000w000011111",
+                    "11111000000000011111111111111111111000000000011111",
+                    "11111000000000011111111111111111111000000000011111",
+                    "11111000000000011111111111111111111000000000011111",
+                    "11111000000000011111111111111111111000000000011111",
+                    "1111100000w000011111111111111111111111111111111111",
+                    "11111000000000011111111111111111111111111111111111",
+                    "11111000000000011111111111111111111111111111111111",
+                    "11111000000000011111111111111111111111111111111111",
+                    "11111111111111111111111111111111111111111111111111"
+                ],
+                portals: [
+                    { c: 10, r: 45, dest: 'city', sc: 40, sr: 56 }
+                ],
+                npcs: [],
+                enemies: [
+                    { c: 10, r: 28, type: 'slime' }, { c: 12, r: 32, type: 'slime' },
+                    { c: 28, r: 22, type: 'bat' }, { c: 32, r: 24, type: 'bat' },
+                    { c: 10, r: 8, type: 'skeleton' }, { c: 12, r: 12, type: 'skeleton' },
+                    { c: 25, r: 5, type: 'boss' }
+                ],
+                chests: [
+                    { c: 42, r: 40, opened: false, keyId: 'gold', color: '#fbbf24' },
+                    { c: 40, r: 8, opened: false, keyId: 'gold', color: '#fbbf24' }
+                ],
+                getTheme: () => themes.dungeon_f4
+            },
+            'dungeon_f5': {
+                width: 60, height: 60,
+                tiles: [
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "111111111111111111100000000000000000000001111111111111111111",
+                    "111111111111111111100000000000000000000001111111111111111111",
+                    "111111111111111111100000000000000000000001111111111111111111",
+                    "111111111111111111100000000000000000000001111111111111111111",
+                    "111111111111111111100000000000000000000001111111111111111111",
+                    "111111111111111111100000000000000000000001111111111111111111",
+                    "111111111111111111100000000000000000000001111111111111111111",
+                    "111111111111111111100000000000000000000001111111111111111111",
+                    "111111111111111111100000000000000000000001111111111111111111",
+                    "111111111111111111100000000000000000000001111111111111111111",
+                    "111111111111111111100000000000000000000001111111111111111111",
+                    "111111111111111111100000000000000000000001111111111111111111",
+                    "111111111111111111100000000000000000000001111111111111111111",
+                    "111111111111111111100000000000000000000001111111111111111111",
+                    "111111111111111111100000000000000000000001111111111111111111",
+                    "111111111111111111100000000000000000000001111111111111111111",
+                    "111111111111111111100000000000000000000001111111111111111111",
+                    "111111111111111111100000000000000000000001111111111111111111",
+                    "111111111111111111111111111100001111111111111111111111111111",
+                    "111111111111111111111111111100001111111111111111111111111111",
+                    "111111111111111111111111111100001111111111111111111111111111",
+                    "111111111111111111111111111100001111111111111111111111111111",
+                    "111111111111111111111111111100001111111111111111111111111111",
+                    "111111111111111111111111111100001111111111111111111111111111",
+                    "111111111111111111110000004400004400000011111111111111111111",
+                    "111100000000000000000000000000000000000000000000000000001111",
+                    "111100000000000000000000000000000000000000000000000000001111",
+                    "111100000000000000000000000000000000000000000000000000001111",
+                    "111100000000000000000000000000000000000000aaaa00000000001111",
+                    "111100000000000000000000000000000000000000aaaa00000000001111",
+                    "111100000000000000000000000000000000000000aaaa00000000001111",
+                    "111100000000000000000000000000000000000000aaaa00000000001111",
+                    "111100000000000000000000000000000000000000aaaa00000000001111",
+                    "111100000000000000000000000000000000000000aaaa00000000001111",
+                    "111100000000000000000000000000000000000000aaaa00000000001111",
+                    "111100000000000000000000000000000000000000aaaa00000000001111",
+                    "111100000000000000000000000000000000000000000000000000001111",
+                    "111100000000000000000000000000000000000000000000000000001111",
+                    "111100000000000000000000000000000000000000000000000000001111",
+                    "111111111111111111110000000000000000000011111111111111111111",
+                    "111111111111111111111111111100001111111111111111111111111111",
+                    "111111111111111111111111111100001111111111111111111111111111",
+                    "111111111111111111111111111100001111111111111111111111111111",
+                    "111111111111111111111111111100001111111111111111111111111111",
+                    "111111111111111111111111111100001111111111111111111111111111",
+                    "111111111111111111111111100000000001111111111111111111111111",
+                    "111111111111111111111111100000000001111111111111111111111111",
+                    "111111111111111111111111100000000001111111111111111111111111",
+                    "111111111111111111111111100000000001111111111111111111111111",
+                    "111111111111111111111111100000000001111111111111111111111111",
+                    "111111111111111111111111100000000001111111111111111111111111",
+                    "111111111111111111111111100000000001111111111111111111111111",
+                    "111111111111111111111111100000000001111111111111111111111111",
+                    "111111111111111111111111111111111111111111111111111111111111"
+                ],
+                portals: [
+                    { c: 30, r: 55, dest: 'city', sc: 40, sr: 56 }
+                ],
+                npcs: [],
+                enemies: [
+                    { c: 46, r: 36, type: 'skeleton' }, { c: 50, r: 40, type: 'skeleton' },
+                    { c: 10, r: 36, type: 'bat' }, { c: 14, r: 40, type: 'bat' },
+                    { c: 28, r: 38, type: 'slime' }, { c: 32, r: 38, type: 'slime' },
+                    { c: 30, r: 15, type: 'boss' }
+                ],
+                chests: [
+                    { c: 50, r: 34, opened: false, keyId: 'start', color: '#38bdf8' },
+                    { c: 10, r: 34, opened: false, keyId: 'forest', color: '#10b981' },
+                    { c: 30, r: 57, opened: false, keyId: 'gold', color: '#fbbf24' }
+                ],
+                getTheme: () => themes.dungeon_f5
+            },
+            'dungeon_f6': {
+                width: 60, height: 50,
+                tiles: [
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "111100000000000011111111111111111111111111100000000000000111",
+                    "111100000000000011111111111111111111111111100000000000000111",
+                    "111100000000000011111111111111111111111111100000000000000111",
+                    "111100000000000011111111111111111111111111100000000000000111",
+                    "111100000000000000000000111111000000000000000000000000000111",
+                    "111100000000000000000000111111000000000000000000000000000111",
+                    "111100000000000000000000111111000000000000000000000000000111",
+                    "111100000000000000000000111111000000000000000000000000000111",
+                    "111100000000000000000000111111000000000000000000000000000111",
+                    "111100000000000000000000111111000000000000000000000000000111",
+                    "111111111111111111111111111111111111111111100000000000000111",
+                    "111111111111111111111111111111111111111111100000000000000111",
+                    "111111111111111111111111111111111111111111100000000000000111",
+                    "111111111111111111111111111111111111111111100000000000000111",
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "111111111111111111111111111111111112222222222111111111111111",
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "11111111000000000000v000000000v01111111111111111111111111111",
+                    "111111110000000000000000000000001111111111111111111111111111",
+                    "111111110000000000000000000000001111111111111111111111111111",
+                    "111111110000000000000000000000001111111111111111111111111111",
+                    "111111110000000000000000000000001111111111111111111111111111",
+                    "111111110000000000000000000000001111111111111111111111111111",
+                    "111111110000000000000000000000001111111111111111111111111111",
+                    "111111110000000000000000000000001111111111111111111111111111",
+                    "111111110000000000000000000000001111111111000000000000111111",
+                    "111111110000000000000000000000001111111111000000000000111111",
+                    "111111110000000000000000000000001111111111000000000000111111",
+                    "111111110000000000000000000000001111000000000000000000111111",
+                    "111111110000000000000000000000001111000000000000000000111111",
+                    "111111110000000000000000000000001111000000000000000000111111",
+                    "111111110000000000000000000000001111000000000000000000111111",
+                    "111111110000000000000000000000001111111111000000000000111111",
+                    "111111111111111111111111111111111111111111000000000000111111",
+                    "111111111111111111111111111111111111111111000000000000111111",
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "111111111111111111111111111111111111111111111111111111111111"
+                ],
+                portals: [
+                    { c: 50, r: 10, dest: 'city', sc: 40, sr: 56 }
+                ],
+                npcs: [
+                    { c: 48, r: 35, id: 'shopkeeper', name: 'エルザ（雑貨店）' }
+                ],
+                enemies: [
+                    { c: 18, r: 28, type: 'slime' }, { c: 22, r: 32, type: 'slime' },
+                    { c: 28, r: 30, type: 'bat' }, { c: 15, r: 34, type: 'skeleton' },
+                    { c: 10, r: 8, type: 'mini_boss' }
+                ],
+                chests: [{ c: 15, r: 36, opened: false, keyId: 'gold', color: '#fbbf24' }
+                ],
+                getTheme: () => themes.dungeon_f6
+            },
+            'dungeon_f7': {
+                width: 60, height: 50,
+                tiles: [
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "111100000000000011111111111111111111111111111111111111111111",
+                    "111100000000000000000000000000000000000000000000000000001111",
+                    "111100000000000000000000000000000000000000000000000000001111",
+                    "111100000000000000000000000000000000000000000000000000001111",
+                    "111100000000000000000000000000000000000000000000000000001111",
+                    "111100000000000000000000000000000000000000000000000000001111",
+                    "111100000000000000000000000000000000000000000000000000001111",
+                    "111100000000000000000000000000000000000000000000000000001111",
+                    "111100000000000000000000000000000000000000000000000000001111",
+                    "111100000000000011111111111111111111111111110000000000001111",
+                    "111111111111111111111111111111111111111111110000000000001111",
+                    "111111111111111111111111111111111111111111110000000000001111",
+                    "111111111111111111111111111111111111111111110000000000001111",
+                    "111111111111111111111111111111111111112222222222221111111111",
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "111111111111111000000000000000000000000000000111111111111111",
+                    "111111111111111000000000000000000000000000000111111111111111",
+                    "11111111111111100000v0000000000000000000v0000111111111111111",
+                    "111111111111111000000000000000000000000000000111111111111111",
+                    "111111111111111000000000000000000000000000000111111111111111",
+                    "111111111111111000000000000000000000000000000111111111111111",
+                    "111111111111111000003333333333333333333300000111111111111111",
+                    "111111111111111000003333333333333333333300000111111111111111",
+                    "111111111111111000003333333333333333333300000111111111111111",
+                    "111111111111111000000003333333333333300000000111111111111111",
+                    "111111111111111000000003333333333333300000000111111111111111",
+                    "111111111111111000000003333333333333300000000111111111111111",
+                    "111111111111111000000003333333333333300000000111111111111111",
+                    "111111111111111000000003333333333333300000000111111111111111",
+                    "111111111111111000000003333333333333300000000111111111111111",
+                    "111111111111111000003333333333333333333300000111111111111111",
+                    "111111111111111000003333333333333333333300000111111111111111",
+                    "111111111111111000003333333333333333333300000111111111111111",
+                    "111111111111111000000000000000000000000000000111111111111111",
+                    "111111111111111000000000000000000000000000000111111111111111",
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "111111111111111111111111111111111111111111111111111111111111",
+                    "111111111111111111111111111111111111111111111111111111111111"
+                ],
+                portals: [
+                    { c: 50, r: 10, dest: 'city', sc: 40, sr: 56 }
+                ],
+                npcs: [],
+                enemies: [
+                    { c: 25, r: 30, type: 'slime' }, { c: 35, r: 30, type: 'slime' },
+                    { c: 30, r: 28, type: 'bat' }, { c: 22, r: 34, type: 'bat' },
+                    { c: 38, r: 34, type: 'skeleton' },
+                    { c: 10, r: 8, type: 'mini_boss' }
+                ],
+                chests: [
+                    { c: 30, r: 35, opened: false, keyId: 'gold', color: '#fbbf24' },
+                    { c: 10, r: 6, opened: false, keyId: 'gold', color: '#fbbf24' }
+                ],
+                getTheme: () => themes.dungeon_f7
+            }
+        };
+
+        // ====== エンティティ定義とマップロードシステム ======
+        let MAP_COLS = 0; let MAP_ROWS = 0;
+        let map = []; let npcs = []; let enemies = []; let chests = [];
+        let currentSceneId = ''; let currentScene = null;
+        let currentSpawnC = 0; let currentSpawnR = 0;
+
+                        class Enemy {
+            constructor(c, r, type) {
+                this.spawnX = (c+0.5)*TILE_SIZE; this.spawnY = (r+0.5)*TILE_SIZE;
+                this.x = this.spawnX; this.y = this.spawnY; this.vx = 0; this.vy = 0;
+                this.type = type; this.isAlive = true; this.isDead = false; this.respawnTimer = 0;
+                this.hitStun = 0; this.attackCooldown = 0;
+                this.state = 'idle'; this.stateTimer = 0;
+                
+                this.canShoot = (type === 'golem' || type === 'boss' || type === 'guardian' || type === 'skeleton');
+                
+                if(type === 'slime') { this.maxHp = 2; this.radius = 12; this.color = '#38bdf8'; this.speed = 80; this.xp = 15; this.gold = 10; this.dropItem = 'スライムの粘液'; }
+                else if(type === 'wind_slime') { this.maxHp = 3; this.radius = 10; this.color = '#10b981'; this.speed = 150; this.xp = 25; this.gold = 15; this.dropItem = '風の結晶'; }
+                else if(type === 'guardian') { this.maxHp = 5; this.radius = 14; this.color = '#fcd34d'; this.speed = 100; this.xp = 40; this.gold = 20; this.dropItem = '鉄くず'; }
+                else if(type === 'golem') { this.maxHp = 8; this.radius = 16; this.color = '#a855f7'; this.speed = 40; this.xp = 50; this.gold = 30; this.dropItem = '魔法の石板'; }
+                else if(type === 'bat') { this.maxHp = 2; this.radius = 8; this.color = '#94a3b8'; this.speed = 160; this.xp = 20; this.gold = 10; this.dropItem = 'コウモリの羽'; }
+                else if(type === 'skeleton') { this.maxHp = 4; this.radius = 12; this.color = '#f1f5f9'; this.speed = 90; this.xp = 30; this.gold = 15; this.dropItem = '骨のかけら'; }
+                else if(type === 'boss') { this.maxHp = 300; this.radius = 32; this.color = '#ef4444'; this.speed = 110; this.xp = 500; this.gold = 300; this.isInvincible = true; this.barrierRadius = 45; this.dropItem = 'アビスコア'; }
+                
+                
+                let floorLevel = 1;
+                if (currentSceneId && currentSceneId.startsWith('dungeon_f')) {
+                    floorLevel = parseInt(currentSceneId.split('_f')[1]);
+                }
+                const levelBonus = (floorLevel - 1) * 5;
+                this.level = 1 + levelBonus;
+                this.maxHp = Math.floor(this.maxHp * (1 + levelBonus * 0.1));
+                this.hp = this.maxHp;
+                if (this.atk) this.atk = Math.floor(this.atk * (1 + levelBonus * 0.1));
+                this.xp += levelBonus * 5;
+                this.gold += levelBonus * 2;
+    
+            }
+
+            update(dt) {
+                if (this.isDead) {
+                    this.respawnTimer -= dt;
+                    if (this.respawnTimer <= 0) {
+                        this.isDead = false; this.isAlive = true;
+                        this.x = this.spawnX; this.y = this.spawnY;
+                        
+                let floorLevel = 1;
+                if (currentSceneId && currentSceneId.startsWith('dungeon_f')) {
+                    floorLevel = parseInt(currentSceneId.split('_f')[1]);
+                }
+                const levelBonus = (floorLevel - 1) * 5;
+                this.level = 1 + levelBonus;
+                this.maxHp = Math.floor(this.maxHp * (1 + levelBonus * 0.1));
+                this.hp = this.maxHp;
+                if (this.atk) this.atk = Math.floor(this.atk * (1 + levelBonus * 0.1));
+                this.xp += levelBonus * 5;
+                this.gold += levelBonus * 2;
+     this.state = 'idle';
+                    }
+                    return;
+                }
+
+                if (this.hitStun > 0) {
+                    this.hitStun -= dt;
+                    this.x += this.vx * dt; this.y += this.vy * dt;
+                    this.vx *= 0.9; this.vy *= 0.9;
+                    return;
+                }
+
+                this.stateTimer -= dt;
+                const dist = Math.hypot(this.x - player.x, this.y - player.y);
+                const angle = Math.atan2(player.y - this.y, player.x - this.x);
+
+                if (this.type === 'slime' || this.type === 'wind_slime') {
+                    if (this.state === 'idle' || this.state === 'chase') {
+                        if (dist < 120 && this.stateTimer <= 0) {
+                            this.state = 'prepare_attack'; this.stateTimer = 0.5; this.vx = 0; this.vy = 0;
+                        } else {
+                            this.state = 'chase';
+                            if (dist < 300) { this.vx = Math.cos(angle)*this.speed; this.vy = Math.sin(angle)*this.speed; }
+                            else { this.vx = 0; this.vy = 0; }
+                        }
+                    } else if (this.state === 'prepare_attack' && this.stateTimer <= 0) {
+                        this.state = 'attacking'; this.stateTimer = 0.8;
+                        this.vx = Math.cos(angle)*this.speed*3; this.vy = Math.sin(angle)*this.speed*3;
+                    } else if (this.state === 'attacking' && this.stateTimer <= 0) {
+                        this.state = 'cooldown'; this.stateTimer = 1.0; this.vx = 0; this.vy = 0;
+                    } else if (this.state === 'cooldown' && this.stateTimer <= 0) {
+                        this.state = 'idle';
+                    }
+                    if (this.state !== 'prepare_attack') { this.x += this.vx * dt; this.y += this.vy * dt; }
+                }
+                else if (this.type === 'bat') {
+                    if (this.state === 'idle' || this.state === 'chase') {
+                        if (dist < 150 && this.stateTimer <= 0) {
+                            this.state = 'attacking'; this.stateTimer = 0.6;
+                            this.vx = Math.cos(angle)*this.speed*2.5; this.vy = Math.sin(angle)*this.speed*2.5;
+                        } else {
+                            this.state = 'chase';
+                            if (dist < 350) {
+                                const targetAngle = angle + Math.sin(Date.now()*0.003)*1.5;
+                                this.vx = Math.cos(targetAngle)*this.speed; this.vy = Math.sin(targetAngle)*this.speed;
+                            } else { this.vx = 0; this.vy = 0; }
+                        }
+                    } else if (this.state === 'attacking' && this.stateTimer <= 0) {
+                        this.state = 'cooldown'; this.stateTimer = 1.5;
+                        this.vx = -Math.cos(angle)*this.speed; this.vy = -Math.sin(angle)*this.speed;
+                    } else if (this.state === 'cooldown' && this.stateTimer <= 0) {
+                        this.state = 'idle';
+                    }
+                    this.x += this.vx * dt; this.y += this.vy * dt;
+                }
+                else if (this.type === 'skeleton') {
+                    if (this.state === 'idle' || this.state === 'chase') {
+                        if (dist < 200 && dist > 100) {
+                            this.vx = 0; this.vy = 0;
+                            if (this.stateTimer <= 0) { this.state = 'prepare_attack'; this.stateTimer = 0.5; }
+                        } else if (dist <= 100) {
+                            this.vx = -Math.cos(angle)*this.speed*0.8; this.vy = -Math.sin(angle)*this.speed*0.8;
+                        } else if (dist < 400) {
+                            this.vx = Math.cos(angle)*this.speed; this.vy = Math.sin(angle)*this.speed;
+                        } else { this.vx = 0; this.vy = 0; }
+                    } else if (this.state === 'prepare_attack' && this.stateTimer <= 0) {
+                        this.state = 'cooldown'; this.stateTimer = 2.0;
+                        enemyProjectiles.push(new EnemyProjectile(this.x, this.y, angle, 300, '#e2e8f0'));
+                    } else if (this.state === 'cooldown' && this.stateTimer <= 0) {
+                        this.state = 'idle';
+                    }
+                    this.x += this.vx * dt; this.y += this.vy * dt;
+                }
+                else if (this.type === 'boss') {
+                    const allActive = bossCrystals.length > 0 && bossCrystals.every(c => c.active);
+                    if (allActive && this.isInvincible) { this.isInvincible = false; this.hitStun = 5.0; showToast("結界崩壊！ボスがダウン！"); }
+                    
+                    if (this.isInvincible) {
+                        if (Math.hypot(this.x - player.x, this.y - player.y) < this.barrierRadius + COLLISION_RADIUS) {
+                            const ang = Math.atan2(player.y - this.y, player.x - this.x); player.vx = Math.cos(ang)*500; player.vy = Math.sin(ang)*500; player.hp -= 5; showToast("無敵バリアに弾かれた！");
+                        }
+                        this.vx = 0; this.vy = 0;
+                    } else if (this.hitStun <= 0 && !this.isInvincible) { 
+                        this.isInvincible = true; bossCrystals.forEach(c => c.active = false); showToast("ボスが結界を再展開！"); 
+                    }
+
+                    if (!this.isInvincible && this.hitStun <= 0) {
+                        if (Math.random() < 0.05) { this.vx = (Math.random()-0.5)*this.speed; this.vy = (Math.random()-0.5)*this.speed; }
+                        this.attackCooldown -= dt;
+                        if (this.attackCooldown <= 0 && dist < 350) {
+                            this.attackCooldown = 1.0 + Math.random() * 0.5;
+                            enemyProjectiles.push(new EnemyProjectile(this.x, this.y, angle, 250, this.color));
+                            enemyProjectiles.push(new EnemyProjectile(this.x, this.y, angle + 0.3, 250, this.color));
+                            enemyProjectiles.push(new EnemyProjectile(this.x, this.y, angle - 0.3, 250, this.color));
+                            if (Math.random() < 0.3) {
+                                for(let i=0; i<8; i++) enemyProjectiles.push(new EnemyProjectile(this.x, this.y, (Math.PI/4)*i, 150, this.color));
+                            }
+                        }
+                    }
+                    this.x += this.vx * dt; this.y += this.vy * dt;
+                }
+                else {
+                    if (dist < 300) { this.vx = Math.cos(angle)*this.speed; this.vy = Math.sin(angle)*this.speed; } else { this.vx = 0; this.vy = 0; }
+                    this.x += this.vx * dt; this.y += this.vy * dt;
+                    if (this.canShoot && this.hitStun <= 0) {
+                        this.attackCooldown -= dt;
+                        if (this.attackCooldown <= 0 && dist < 250) { this.attackCooldown = 2.0; enemyProjectiles.push(new EnemyProjectile(this.x, this.y, angle, 200, this.color)); }
+                    }
+                }
+            }
+
+            render(ctx) {
+                if (this.isDead) {
+                    if (this.respawnTimer > 0 && this.respawnTimer <= 3.0) {
+                        ctx.save(); ctx.translate(this.spawnX, this.spawnY);
+                        ctx.strokeStyle = `rgba(239, 68, 68, ${(3.0 - this.respawnTimer)/3.0})`;
+                        ctx.lineWidth = 2; ctx.rotate(Date.now()*0.005);
+                        ctx.beginPath(); ctx.arc(0, 0, this.radius * 1.5, 0, Math.PI*2); ctx.stroke();
+                        ctx.beginPath(); ctx.moveTo(0, -this.radius*1.2); ctx.lineTo(this.radius*1.0, this.radius*0.6); ctx.lineTo(-this.radius*1.0, this.radius*0.6); ctx.closePath(); ctx.stroke();
+                        ctx.beginPath(); ctx.moveTo(0, this.radius*1.2); ctx.lineTo(this.radius*1.0, -this.radius*0.6); ctx.lineTo(-this.radius*1.0, -this.radius*0.6); ctx.closePath(); ctx.stroke();
+                        ctx.restore();
+                    }
+                    return;
+                }
+
+                if (this.type === 'slime' && imgSlime.complete && imgSlime.naturalWidth > 0) {
+                    ctx.save(); ctx.translate(this.x, this.y);
+                    if (this.state === 'prepare_attack') ctx.translate((Math.random()-0.5)*4, (Math.random()-0.5)*4);
+                    ctx.drawImage(imgSlime, -this.radius*1.3, -this.radius*1.3, this.radius*2.6, this.radius*2.6);
+                    ctx.restore();
+                } else {
+                    ctx.fillStyle = this.hitStun > 0 ? '#ffffff' : this.color; 
+                    ctx.shadowColor = this.color; ctx.shadowBlur = 10;
+                    ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
+                }
+                
+                if (this.isInvincible) {
+                    ctx.beginPath(); ctx.arc(this.x, this.y, this.barrierRadius, 0, Math.PI * 2); ctx.strokeStyle = 'rgba(56, 189, 248, 0.8)'; ctx.lineWidth = 3; ctx.stroke();
+                    ctx.fillStyle = 'rgba(56, 189, 248, 0.15)'; ctx.fill();
+                }
+            }
+        }
+        class EnemyProjectile {
+            constructor(x, y, angle, speed, color) {
+                this.x = x; this.y = y; this.vx = Math.cos(angle)*speed; this.vy = Math.sin(angle)*speed;
+                this.life = 2.0; this.color = color; this.active = true;
+            }
+            move(dt) {
+                let nx = this.x + this.vx * dt;
+                let ny = this.y + this.vy * dt;
+                // コウモリ以外は壁に引っかかる（コウモリも壁は越えられない）
+                const tile = getTileAt(nx, ny);
+                if (tile === 1 || tile === 4 || tile === 8 || tile === 9 || tile === 7 || tile === 3) {
+                    const tx = getTileAt(nx, this.y);
+                    if (tx === 1 || tx === 4 || tx === 8 || tx === 9 || tx === 7 || tx === 3) nx = this.x;
+                    const ty = getTileAt(this.x, ny);
+                    if (ty === 1 || ty === 4 || ty === 8 || ty === 9 || ty === 7 || ty === 3) ny = this.y;
+                    
+                    // それでも壁に埋まっているなら移動しない（斜め等のエッジケース）
+                    if (getTileAt(nx, ny) === 1) { nx = this.x; ny = this.y; }
+                }
+                this.x = nx; this.y = ny;
+            }
+
+            update(dt) {
+                this.move(dt); this.life -= dt;
+                if (getTileAt(this.x, this.y) === 1) this.active = false;
+                if (this.active && Math.hypot(this.x - player.x, this.y - player.y) < COLLISION_RADIUS + 4) {
+                    player.hp -= 5; this.active = false;
+                    showToast("敵の攻撃を受けた！");
+                }
+            }
+            render(ctx) {
+                ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(this.x, this.y, 4, 0, Math.PI*2); ctx.fill();
+                ctx.shadowBlur = 10; ctx.shadowColor = this.color; ctx.fill(); ctx.shadowBlur = 0;
+            }
+        }
+        const enemyProjectiles = [];
+
+        function loadScene(id, spawnC, spawnR) {
+            currentSceneId = id; currentScene = sceneData[id];
+            currentSpawnC = spawnC; currentSpawnR = spawnR;
+            MAP_COLS = currentScene.width; MAP_ROWS = currentScene.height;
+            map = [];
+            for (let r = 0; r < MAP_ROWS; r++) {
+                const row = [];
+                for (let c = 0; c < MAP_COLS; c++) {
+                    const char = currentScene.tiles[r][c];
+                    if (char === 'a' || char === 'v' || char === 'w') row.push(char);
+                    else row.push(parseInt(char, 36));
+                }
+                map.push(row);
+            }
+            npcs = currentScene.npcs.map(n => ({ ...n, x: (n.c+0.5)*TILE_SIZE, y: (n.r+0.5)*TILE_SIZE }));
+            enemies = currentScene.enemies.map(e => new Enemy(e.c, e.r, e.type));
+            chests = currentScene.chests.map(c => ({ ...c, x: (c.c+0.5)*TILE_SIZE, y: (c.r+0.5)*TILE_SIZE }));
+            
+            enemyProjectiles.length = 0;
+            swordSlashes.length = 0;
+            damageParticles.length = 0;
+            pushBlocks.length = 0;
+            bossCrystals.length = 0;
+            
+            if (id === 'dungeon_f1') {
+                bossCrystals.push({ x: (30+0.5)*TILE_SIZE, y: (65+0.5)*TILE_SIZE, active: false });
+                bossCrystals.push({ x: (50+0.5)*TILE_SIZE, y: (65+0.5)*TILE_SIZE, active: false });
+                bossCrystals.push({ x: (30+0.5)*TILE_SIZE, y: (75+0.5)*TILE_SIZE, active: false });
+                bossCrystals.push({ x: (50+0.5)*TILE_SIZE, y: (75+0.5)*TILE_SIZE, active: false });
+            }
+
+            player.x = (spawnC + 0.5) * TILE_SIZE;
+            player.y = (spawnR + 0.5) * TILE_SIZE;
+            camera.x = player.x; camera.y = player.y;
+
+            // --- ポータルの強制初期化と定義 (バグ回避用) ---
+            currentScene.portals = [];
+            if (id === 'city') {
+                currentScene.portals.push({ c: 25, r: 20, dest: 'guild', sc: 10, sr: 13 });
+                currentScene.portals.push({ c: 75, r: 30, dest: 'dungeon_f1', sc: 40, sr: 74 });
+            } else if (id === 'guild') {
+                currentScene.portals.push({ c: 10, r: 14, dest: 'city', sc: 25, sr: 21 });
+                currentScene.portals.push({ c: 9, r: 14, dest: 'city', sc: 25, sr: 21 });
+                currentScene.portals.push({ c: 11, r: 14, dest: 'city', sc: 25, sr: 21 });
+            } else if (id === 'dungeon_f1') {
+                currentScene.portals.push({ c: 40, r: 76, dest: 'city', sc: 74, sr: 30 });
+            } else if (id.startsWith('dungeon_f')) {
+                currentScene.portals.push({ c: 40, r: 76, dest: 'city', sc: 74, sr: 30 });
+                // もし各階層でボスを倒していれば、追加のポータルがあるかもしれないが、
+                // 初期ロード時には一旦初期化してしまう。ボスを倒した時にプッシュされるので問題なし。
+            }
+
+            
+            showToast(currentScene.getTheme().name + " に移動しました");
+        }
+
+        const dialogues = {
+            'guide': [
+                "🤕 おい、大丈夫か？ こんな浅層で倒れているとはな...",
+                "🌀 記憶がないのか？ ここは『アビス』と呼ばれる巨大な迷宮だ。",
+                "⚔️ とりあえず、まずはこの辺りのスライムを狩って勘を取り戻せ。",
+                "🎮 I, O, K, L キーのスキルを使って戦うんだ。Jで通常攻撃だ。",
+                "✨ 準備ができたら奥へ進もう。さらなる深層を目指すんだ！"
+            ],
+            'guildmaster': [
+                "🍻 よく来たな、冒険者よ。私はギルドマスターだ。",
+                "🏰 ここは『迷宮都市アビス・エッジ』。",
+                "💎 アビスの恵みによって栄え、そして呪われた街だ。",
+                "🗺️ 準備ができたら、南のポータルからダンジョンへ向かえ。",
+                "🔥 健闘を祈る！"
+            ]
+        };
+        let dialogueState = { active: false, lines: [], lineIdx: 0, charIdx: 0, timer: 0 };
+        const drops = []; const swordSlashes = []; const damageParticles = [];
+        const pushBlocks = []; const bossCrystals = [];
+
+        function getTileAt(x, y) {
+            const col = Math.floor(x / TILE_SIZE), row = Math.floor(y / TILE_SIZE);
+            if (col < 0 || col >= MAP_COLS || row < 0 || row >= MAP_ROWS) return 1;
+            return map[row][col];
+        }
+
+        function showToast(text) { toast.textContent = text; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 2000); }
+
+        function openCooking() {
+            if (player.state === PlayerState.DIALOGUE) return;
+            document.getElementById('cookingModal').classList.add('open');
+            player.state = PlayerState.DIALOGUE; player.vx = 0; player.vy = 0;
+        }
+        function closeCooking() {
+            document.getElementById('cookingModal').classList.remove('open');
+            if(player.state === PlayerState.DIALOGUE && !dialogueState.active) player.state = PlayerState.IDLE;
+        }
+        function cookFood(type) {
+            let inv = player.inventory;
+            if(type === 'jelly') {
+                if((inv['スライムの粘液'] || 0) >= 3) { inv['スライムの粘液'] -= 3; player.foodBuffs.maxHp += 20; player.maxHp += 20; player.hp += 20; showToast("🍲 スライムゼリーを食べた！最大HP+20"); }
+                else { showToast("素材が足りません！"); return; }
+            } else if(type === 'soup') {
+                if((inv['風の結晶'] || 0) >= 2) { inv['風の結晶'] -= 2; player.foodBuffs.spd += 30; player.spd += 30; showToast("🍲 風のスープを食べた！SPD+30"); }
+                else { showToast("素材が足りません！"); return; }
+            } else if(type === 'skewer') {
+                if((inv['鉄くず'] || 0) >= 2 && (inv['スライムの粘液'] || 0) >= 1) { inv['鉄くず'] -= 2; inv['スライムの粘液'] -= 1; player.foodBuffs.def += 3; player.def += 3; showToast("🍲 鉄壁の串焼きを食べた！DEF+3"); }
+                else { showToast("素材が足りません！"); return; }
+            }
+            updateHUD(); closeCooking();
+        }
+
+        function openMainMenu() {
+            if (player.state === PlayerState.DIALOGUE && !document.getElementById('mainMenuOverlay').classList.contains('open')) return;
+            document.getElementById('mainMenuOverlay').classList.add('open');
+            player.state = PlayerState.DIALOGUE; player.vx = 0; player.vy = 0;
+            updateMenu();
+        }
+        function closeMainMenu() {
+            document.getElementById('mainMenuOverlay').classList.remove('open');
+            if (player.state === PlayerState.DIALOGUE && !dialogueState.active) player.state = PlayerState.IDLE;
+        }
+
+        function updateMenu() {
+            const s = souls[player.currentSoulId];
+            document.getElementById('menuSoulName').textContent = s.icon + ' ' + s.name;
+            document.getElementById('menuLv').textContent = player.level;
+            document.getElementById('menuHp').textContent = `${Math.floor(player.hp)} / ${Math.floor(player.maxHp)}`;
+            document.getElementById('menuMp').textContent = `${Math.floor(player.mp)} / ${Math.floor(player.maxMp)}`;
+            document.getElementById('menuAtk').textContent = player.atk;
+            document.getElementById('menuDef').textContent = player.def;
+            document.getElementById('menuSpd').textContent = player.spd;
+            document.getElementById('menuGold').textContent = player.gold + " G";
+            
+            let keysObj = [];
+            if(player.keys.start) keysObj.push("青の鍵");
+            if(player.keys.forest) keysObj.push("緑の鍵");
+            if(player.keys.crystal) keysObj.push("紫の鍵");
+            if(player.keys.temple) keysObj.push("赤の鍵");
+            document.getElementById('menuKeys').textContent = keysObj.length > 0 ? keysObj.join(", ") : "なし";
+            
+            let invHtml = '';
+            for(let item in player.inventory) {
+                if(item !== '記憶の欠片' && player.inventory[item] > 0) {
+                    invHtml += `<div class="inv-item"><span style="color:#e2e8f0;">${item}</span><span style="color:#94a3b8;">x ${player.inventory[item]}</span></div>`;
+                }
+            }
+            if(invHtml === '') invHtml = '<div style="color:#64748b; text-align:center; padding:10px;">アイテムがありません</div>';
+            document.getElementById('menuInventoryList').innerHTML = invHtml;
+
+            let skillsHtml = '';
+            for(let k in player.skills) {
+                const sk = player.skills[k];
+                skillsHtml += `<div class="skill-box" style="flex-direction:row; justify-content:space-between; width:100%; margin-bottom:5px; background:rgba(0,0,0,0.5);">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <span class="skill-key" style="margin:0;">${k}</span>
+                        <span class="skill-name" style="font-size:0.8rem; color:#fff;">${sk.name}</span>
+                    </div>
+                    <span style="font-size:0.7rem; color:#94a3b8;">MP: ${sk.mp} / CD: ${sk.maxCd}s</span>
+                </div>`;
+            }
+            document.getElementById('menuSkills').innerHTML = skillsHtml;
+        }
+
+        function openSoulDrive() {
+            if (player.state === PlayerState.DIALOGUE && !document.getElementById('soulDriveModal').classList.contains('open')) return;
+            document.getElementById('soulDriveModal').classList.add('open');
+            player.state = PlayerState.DIALOGUE; player.vx = 0; player.vy = 0;
+            
+            document.getElementById('memoryShardCount').textContent = player.inventory['記憶の欠片'] || 0;
+            
+            let html = '';
+            for(let id in souls) {
+                const s = souls[id];
+                if(s.unlocked) {
+                    html += `<div class="shop-item" style="cursor:pointer;" onclick="switchSoul('${id}')">
+                        <div style="display:flex; flex-direction:column;"><span style="font-weight:700;">${s.icon} ${s.name} (Lv.${s.level})</span><span style="font-size:0.7rem; color:#94a3b8;">HP:${s.maxHp} ATK:${s.atk} SPD:${s.spd}</span></div>
+                        <button class="buy-btn" style="background:var(--accent-purple);">同期</button>
+                    </div>`;
+                } else {
+                    html += `<div class="shop-item" style="opacity:0.4;">
+                        <div style="display:flex; flex-direction:column;"><span style="font-weight:700;">❓ 未解析のソウル</span><span style="font-size:0.7rem; color:#94a3b8;">『記憶の欠片』が不足しています</span></div>
+                    </div>`;
+                }
+            }
+            document.getElementById('soulList').innerHTML = html;
+        }
+
+        function closeSoulDrive() {
+            document.getElementById('soulDriveModal').classList.remove('open');
+            if(player.state === PlayerState.DIALOGUE && !dialogueState.active) player.state = PlayerState.IDLE;
+        }
+
+        const visions = [
+            { text: "【アレスの記憶】\n「俺が盾になる。お前は……生きて未来を掴め！」\n\n✨パッシブ獲得: 全ソウルの最大HP +10", apply: () => { for(let k in souls) souls[k].maxHp += 10; player.hp += 10; player.maxHp += 10; } },
+            { text: "【リリスの記憶】\n「虚無の力は危険よ……でも、私なら制御できるはず……！」\n\n✨パッシブ獲得: 全ソウルのATK +3", apply: () => { for(let k in souls) souls[k].atk += 3; player.atk += 3; } },
+            { text: "【シアンの記憶】\n「運命なんて糞食らえだ！ 俺たちの自由は誰にも渡さねぇ！」\n\n✨パッシブ獲得: 全ソウルのSPD +15", apply: () => { for(let k in souls) souls[k].spd += 15; player.spd += 15; } },
+            { text: "【魔導騎士の誓い】\n「我ら共鳴者、命尽きるともこの世界を護り抜かん」\n\n✨ リリス(魔法使い)のソウルがアンロックされた！", apply: () => { souls['Lilith'].unlocked = true; } }
+        ];
+        let currentVisionIndex = 0;
+
+        function restoreVision() {
+            if ((player.inventory['記憶の欠片'] || 0) <= 0) { showToast("『記憶の欠片』が足りません。ボスを討伐しましょう。"); return; }
+            if (currentVisionIndex >= visions.length) { showToast("すべてのビジョンを復元しました。"); return; }
+            
+            player.inventory['記憶の欠片']--;
+            const v = visions[currentVisionIndex]; currentVisionIndex++;
+            v.apply();
+            
+            closeSoulDrive();
+            dialogueState = { active: true, lines: [v.text], lineIdx: 0, charIdx: 0, timer: 0 };
+            document.getElementById('dialogueName').textContent = "ソウル・ドライブ / ビジョン復元"; 
+            document.getElementById('dialogueText').textContent = ""; 
+            document.getElementById('dialogueOverlay').classList.add('show');
+            player.state = PlayerState.DIALOGUE; player.vx = 0; player.vy = 0;
+            updateHUD();
+        }
+
+        function switchSoul(soulId) {
+            if(!souls[soulId] || !souls[soulId].unlocked) return;
+            const hpRatio = player.hp / player.maxHp;
+            const mpRatio = player.mp / player.maxMp;
+            
+            // 現在のソウルのデータを保存
+            souls[player.currentSoulId].level = player.level;
+            souls[player.currentSoulId].xp = player.xp;
+            souls[player.currentSoulId].xpNeeded = player.xpNeeded;
+            
+            // 新しいソウルのデータをロード
+            player.currentSoulId = soulId;
+            const s = souls[soulId];
+            player.level = s.level; player.xp = s.xp; player.xpNeeded = s.xpNeeded;
+            player.maxHp = s.maxHp; player.maxMp = s.maxMp;
+            player.atk = s.atk; player.def = s.def; player.spd = s.spd;
+            player.hp = Math.max(1, player.maxHp * hpRatio); player.mp = player.maxMp * mpRatio;
+            
+            document.getElementById('currentSoulName').textContent = s.icon + ' ' + s.name;
+            
+            closeSoulDrive();
+            showToast(`🔄 ソウル・ドライブ: ${s.name} に同期しました！`);
+            updateHUD();
+        }
+
+        function openShop() { 
+            if (player.state === PlayerState.DIALOGUE) return;
+            document.getElementById('shopGoldDisplay').textContent = `${player.gold} G`; 
+            document.getElementById('shopModal').classList.add('open'); 
+            player.state = PlayerState.DIALOGUE; player.vx = 0; player.vy = 0;
+        }
+        function closeShop() { 
+            document.getElementById('shopModal').classList.remove('open'); 
+            if (player.state === PlayerState.DIALOGUE && !dialogueState.active) player.state = PlayerState.IDLE;
+        }
+        function buyItem(type, price) {
+            if (player.gold < price) { showToast("ゴールドが足りません！"); return; }
+            if (type === 'hp') { player.gold -= price; player.maxHp += 20; player.hp = player.maxHp; }
+            else if (type === 'hover') {
+                if (player.hasHoverAbility) return;
+                player.gold -= price; player.hasHoverAbility = true;
+                showToast("ホバー能力は現在準備中です！"); return;
+            }
+            updateHUD(); closeShop(); showToast("強化完了！");
+        }
+
+        window.addEventListener('keydown', e => {
+            if (e.key === 'Tab') e.preventDefault();
+            const key = e.key.toLowerCase(); keys[key] = true;
+
+            if (key === 'tab') {
+                if (document.getElementById('mainMenuOverlay').classList.contains('open')) { closeMainMenu(); return; }
+                else if (player.state !== PlayerState.DIALOGUE) { openMainMenu(); return; }
+            }
+            
+            if (key === 'f') {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(err => {
+                        console.log(`Fullscreen error: ${err.message}`);
+                    });
+                } else {
+                    document.exitFullscreen();
+                }
+                return;
+            }
+            if (key === 'escape') {
+                if (document.getElementById('mainMenuOverlay').classList.contains('open')) closeMainMenu();
+                if (document.getElementById('soulDriveModal').classList.contains('open')) closeSoulDrive();
+                if (document.getElementById('shopModal').classList.contains('open')) closeShop();
+                if (document.getElementById('cookingModal').classList.contains('open')) closeCooking();
+                return;
+            }
+
+            if (key === ' ' && player.state === PlayerState.DIALOGUE && dialogueState.active) {
+                const currentLine = dialogueState.lines[dialogueState.lineIdx];
+                if (dialogueState.charIdx < currentLine.length) { dialogueState.charIdx = currentLine.length; document.getElementById('dialogueText').textContent = currentLine; }
+                else {
+                    dialogueState.lineIdx++; dialogueState.charIdx = 0;
+                    if (dialogueState.lineIdx >= dialogueState.lines.length) {
+                        dialogueState.active = false; player.state = PlayerState.IDLE; document.getElementById('dialogueOverlay').classList.remove('show');
+                        document.getElementById('questText').textContent = "クエスト: 会話が完了した。宝箱から鍵を探せ！";
+                    }
+                }
+                return;
+            }
+            if (key === 'c') {
+                if (document.getElementById('soulDriveModal').classList.contains('open')) { closeSoulDrive(); return; }
+                else if (player.state !== PlayerState.DIALOGUE) { openSoulDrive(); return; }
+            }
+            if (player.state === PlayerState.DIALOGUE) return;
+
+            if (key === 'e') triggerInteract();
+            if (key === 'i' || key === 'o' || key === 'k' || key === 'l') useSkill(key);
+            if (key === ' ') { e.preventDefault(); useSkill('i'); } // SpaceはDash(I)に
+            if (key === 'j') triggerAttack();
+        });
+        window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+
+        function useSkill(key) {
+            const skill = player.skills[key.toUpperCase()];
+            if (!skill || skill.cd > 0 || player.mp < skill.mp) {
+                if (skill && skill.cd > 0) showToast("クールダウン中です！");
+                else if (skill && player.mp < skill.mp) showToast("MPが足りません！");
+                return;
+            }
+            player.mp -= skill.mp; skill.cd = skill.maxCd;
+            showToast(`⚔️ スキル発動: ${skill.name}!`);
+            if (key === 'i') {
+                player.state = PlayerState.DASH; player.dashTimer = 0.2;
+                let dx = 0, dy = 0; if (keys['w']) dy = -1; if (keys['s']) dy = 1; if (keys['a']) dx = -1; if (keys['d']) dx = 1;
+                const pTile = getTileAt(player.x, player.y);
+                if (pTile === 'a') { player.y += 150 * dt; }
+                if (dx === 0 && dy === 0) { dx = Math.cos(player.angle); dy = Math.sin(player.angle); }
+                const len = Math.hypot(dx, dy) || 1; player.vx = (dx/len) * 700; player.vy = (dy/len) * 700;
+            } else if (key === 'o') {
+                player.state = PlayerState.ATTACK; player.attackTimer = 0.3;
+                for(let i=0; i<8; i++) {
+                    const ang = (i/8)*Math.PI*2;
+                    swordSlashes.push({ x: player.x + Math.cos(ang)*30, y: player.y + Math.sin(ang)*30, life: 0.2, angle: ang });
+                }
+                enemies.forEach(enemy => {
+                    if (enemy.isAlive && Math.hypot(enemy.x - player.x, enemy.y - player.y) < 60) applyDamageToEnemy(enemy, player.atk * 1.5);
+                });
+            }
+            updateHUD();
+        }
+
+        function triggerInteract() {
+            // NPC判定 (半径60)
+            const npc = npcs.find(n => Math.hypot(n.x - player.x, n.y - player.y) < 60);
+            if (npc) {
+                player.state = PlayerState.DIALOGUE; player.vx = 0; player.vy = 0;
+                let lines = ["（無言）"];
+                if (npc.id === 'guide') lines = dialogues['guide'];
+                else if (npc.id === 'guildmaster') lines = dialogues['guildmaster'];
+                else if (npc.id === 'blacksmith_master') lines = ["🔨 おう！いらっしゃい。武器を鍛えるかい？", "🔥 悪いが、まだ設備が準備中でな。", "💰 とりあえず素材を持ってきたら、隣のギルドで売るんだな！"];
+                
+                dialogueState = { active: true, lines: lines, lineIdx: 0, charIdx: 0, timer: 0 };
+                document.getElementById('dialogueName').textContent = npc.name; document.getElementById('dialogueText').textContent = ""; document.getElementById('dialogueOverlay').classList.add('show');
+                return;
+            }
+
+            const adjTiles = [getTileAt(player.x, player.y), getTileAt(player.x, player.y - 18), getTileAt(player.x, player.y + 18), getTileAt(player.x - 18, player.y), getTileAt(player.x + 18, player.y)];
+            if (adjTiles.includes(5)) { openShop(); return; }
+            if (adjTiles.includes(16)) { openCooking(); return; }
+            if (adjTiles.includes(17)) {
+                player.state = PlayerState.DIALOGUE; player.vx = 0; player.vy = 0;
+                if (!player.activeQuest) {
+                    const quests = [
+            { id: 1, name: 'スライム討伐', target: 'slime', req: 5, reward: 100, desc: '街の周囲のスライムを5匹討伐せよ。' },
+            { id: 2, name: 'コウモリの脅威', target: 'bat', req: 8, reward: 150, desc: '洞窟のコウモリを8匹討伐せよ。' },
+            { id: 3, name: 'スケルトン撃退', target: 'skeleton', req: 10, reward: 200, desc: '遺跡のスケルトンを10体撃退せよ。' },
+            { id: 4, name: '深淵の魔物', target: 'wind_slime', req: 5, reward: 250, desc: '風のスライムを5匹討伐せよ。' },
+            { id: 5, name: '巨大ボスの討伐', target: 'boss', req: 1, reward: 1000, desc: '階層のボスを討伐せよ！' }
+        ];
+                    const q = quests[Math.floor(Math.random() * quests.length)];
+                    player.activeQuest = q; player.questProgress = 0;
+                    dialogueState = { active: true, lines: [`📜 【クエストボード】\n★ 『${q.name}（0/${q.req}）』を受注しました！`], lineIdx: 0, charIdx: 0, timer: 0 };
+                    document.getElementById('questText').textContent = `クエスト: ${q.name} (0/${q.req})`;
+                } else if (player.activeQuest && player.questProgress >= player.activeQuest.req) {
+                    player.gold += player.activeQuest.reward;
+                    dialogueState = { active: true, lines: [`📜 【クエストボード】\n★ 報告完了！ 報酬の【${player.activeQuest.reward}G】を獲得しました！`], lineIdx: 0, charIdx: 0, timer: 0 };
+                    player.activeQuest = null; player.questProgress = 0;
+                    document.getElementById('questText').textContent = "クエスト: なし";
+                    updateHUD();
+                } else {
+                    dialogueState = { active: true, lines: [`📜 【クエストボード】\n★ 現在の進行度: ${player.activeQuest.name} (${player.questProgress}/${player.activeQuest.req})`], lineIdx: 0, charIdx: 0, timer: 0 };
+                }
+                document.getElementById('dialogueName').textContent = "クエストボード"; document.getElementById('dialogueText').textContent = ""; document.getElementById('dialogueOverlay').classList.add('show');
+                return;
+            }
+
+            if (currentSceneId === 'guild' && Math.hypot(player.x - 9.5*TILE_SIZE, player.y - 4.5*TILE_SIZE) < 80) {
+                // ギルドマスターとの会話（素材一括売却）
+                let earned = 0;
+                let log = "";
+                for (const [item, count] of Object.entries(player.inventory)) {
+                    if (count > 0) {
+                        const price = item === 'スライムの粘液' ? 10 : (item === '風の結晶' ? 25 : (item === '鉄くず' ? 50 : (item === 'アビスコア' ? 500 : 15)));
+                        earned += price * count;
+                        log += `${item} x${count} -> ${price * count}G\n`;
+                        player.inventory[item] = 0;
+                    }
+                }
+                player.state = PlayerState.DIALOGUE; player.vx = 0; player.vy = 0;
+                if (earned > 0) {
+                    player.gold += earned;
+                    dialogueState = { active: true, lines: [`🍻 おお、素材を持ってきたな！\n買い取ろう。\n${log}\n合計: ${earned}G を渡したぞ！`], lineIdx: 0, charIdx: 0, timer: 0 };
+                } else {
+                    dialogueState = { active: true, lines: dialogues['guildmaster'], lineIdx: 0, charIdx: 0, timer: 0 };
+                }
+                document.getElementById('dialogueName').textContent = "ギルドマスター"; document.getElementById('dialogueText').textContent = ""; document.getElementById('dialogueOverlay').classList.add('show');
+                updateHUD();
+                return;
+            }
+
+            const offsets = [{x:0, y:-20}, {x:0, y:20}, {x:-20, y:0}, {x:20, y:0}];
+            for (let opt of offsets) {
+                const tile = getTileAt(player.x + opt.x, player.y + opt.y);
+                if (tile === 4 || tile === 8 || tile === 9 || tile === 7) {
+                    let reqKey = '', keyName = '';
+                    if (tile === 4) { reqKey = 'start'; keyName = '青の鍵（start）'; }
+                    else if (tile === 8) { reqKey = 'forest'; keyName = '緑の鍵（forest）'; }
+                    else if (tile === 9) { reqKey = 'crystal'; keyName = '紫の鍵'; }
+                    else if (tile === 7) { reqKey = 'temple'; keyName = '赤の鍵'; }
+
+                    
+                    let canOpen = false;
+                    if (tile === 4 && player.keys['start']) canOpen = true;
+                    else if (tile === 8 && player.keys['forest']) canOpen = true;
+                    else if (tile === 9 && player.keys['crystal']) canOpen = true;
+                    else if (tile === 7 && player.keys['temple']) canOpen = true;
+
+                    if (canOpen) {
+                        const bx = player.x + opt.x, by = player.y + opt.y;
+                        [0, -32, 32].forEach(dy => [0, -32, 32].forEach(dx => {
+                            const c = Math.floor((bx + dx) / TILE_SIZE), r = Math.floor((by + dy) / TILE_SIZE);
+                            if (map[r] && map[r][c] === tile) map[r][c] = 0;
+                        }));
+                        showToast(`🔑 【${keyName}】で封印を解きました！(鍵は失われません)`);
+                        updateHUD();
+                    } else { showToast(`🔒 この扉には【${keyName}】が必要です。`); }
+
+                    return;
+                }
+            }
+
+            chests.forEach(chest => {
+                if (!chest.opened && Math.hypot(chest.x - player.x, chest.y - player.y) < 36) {
+                    chest.opened = true; 
+                    if (chest.keyId === 'gold') {
+                        player.gold += 150; showToast("🎁 宝箱を開けた！【150G】を獲得！");
+                    } else {
+                        player.keys[chest.keyId] = true; player.gold += 50;
+                        showToast(`🎁 宝箱を開けた！【${chest.keyId}の鍵】と【50G】を獲得！`);
+                    }
+                    for(let i=0; i<12; i++) damageParticles.push({ x: chest.x, y: chest.y, vx: (Math.random()-0.5)*100, vy: (Math.random()-0.5)*100, life: 0.4, color: chest.color });
+                    updateHUD();
+                }
+            });
+        }
+
+        function applyDamageToEnemy(enemy, damageStr) {
+            enemy.hitStun = 0.5; enemy.hp -= Math.max(1, damageStr);
+            const ang = Math.atan2(enemy.y - player.y, enemy.x - player.x);
+            enemy.vx = Math.cos(ang) * 300; enemy.vy = Math.sin(ang) * 300;
+
+            if (enemy.hp <= 0) {
+                enemy.isDead = true; enemy.respawnTimer = 15.0; spawnDrops(enemy.x, enemy.y, enemy.xp, enemy.gold); 
+                
+                // アイテムドロップ処理
+                if (enemy.dropItem && Math.random() < 0.6) { // 60%の確率でドロップ
+                    player.inventory[enemy.dropItem] = (player.inventory[enemy.dropItem] || 0) + 1;
+                    showToast(`✨ 『${enemy.dropItem}』を手に入れた！`);
+                }
+                if (enemy.type === 'boss') {
+                    player.inventory['記憶の欠片'] = (player.inventory['記憶の欠片'] || 0) + 1;
+                    showToast(`💎 記憶の欠片を獲得！さらに、次の階層への道が開かれた！`);
+                    
+                    const ec = Math.floor(enemy.x / TILE_SIZE);
+                    const er = Math.floor(enemy.y / TILE_SIZE);
+                    map[er][ec] = 12; // ポータルタイル
+                    
+                    let nextDest = 'city';
+                    let nextSc = 40, nextSr = 56;
+                    if (currentSceneId === 'dungeon_f1') { nextDest = 'dungeon_f2'; nextSc = 30; nextSr = 55; }
+                    else if (currentSceneId === 'dungeon_f2') { nextDest = 'dungeon_f3'; nextSc = 30; nextSr = 55; }
+                    else if (currentSceneId === 'dungeon_f3') { nextDest = 'dungeon_f4'; nextSc = 10; nextSr = 45; }
+                    else if (currentSceneId === 'dungeon_f4') { nextDest = 'dungeon_f5'; nextSc = 30; nextSr = 55; }
+                    else if (currentSceneId === 'dungeon_f5') { nextDest = 'dungeon_f6'; nextSc = 50; nextSr = 10; }
+                    else if (currentSceneId === 'dungeon_f6') { nextDest = 'dungeon_f7'; nextSc = 50; nextSr = 10; }
+                    else if (currentSceneId === 'dungeon_f7') { nextDest = 'city'; } // 以降は街へ戻る
+                    
+                    currentScene.portals.push({ c: ec, r: er, dest: nextDest, sc: nextSc, sr: nextSr });
+                }
+
+                // クエスト進行処理
+                if (player.activeQuest && enemy.type.includes(player.activeQuest.target)) {
+                    player.questProgress++;
+                    document.getElementById('questText').textContent = `クエスト: ${player.activeQuest.name} (${player.questProgress}/${player.activeQuest.req})`;
+                    if (player.questProgress >= player.activeQuest.req) showToast("🎉 クエスト目標達成！ギルドへ報告しよう！");
+                }
+            }
+        }
+
+        function triggerAttack() {
+            if (player.state === PlayerState.DASH || player.state === PlayerState.ATTACK) return;
+            player.state = PlayerState.ATTACK; player.attackTimer = 0.22;
+            swordSlashes.push({ x: player.x + Math.cos(player.angle)*22, y: player.y + Math.sin(player.angle)*22, life: 0.12, angle: player.angle });
+
+            enemies.forEach(enemy => {
+                if (!enemy.isAlive || Math.hypot(enemy.x - player.x, enemy.y - player.y) >= 46) return;
+                if (enemy.isInvincible) {
+                    const ang = Math.atan2(player.y - enemy.y, player.x - enemy.x); player.vx = Math.cos(ang)*400; player.vy = Math.sin(ang)*400; return;
+                }
+                applyDamageToEnemy(enemy, player.atk); // 防御計算は一旦簡易化
+            });
+
+            bossCrystals.forEach(c => {
+                if (!c.active && Math.hypot(c.x - player.x, c.y - player.y) < 40) {
+                    c.active = true; showToast("🔮 クリスタルを起動した！");
+                    for(let i=0; i<10; i++) damageParticles.push({ x: c.x, y: c.y, vx: (Math.random()-0.5)*150, vy: (Math.random()-0.5)*150, life: 0.3, color: '#38bdf8' });
+                }
+            });
+        }
+
+        function spawnDrops(x, y, xp, gold) {
+            const coinsCount = Math.floor(Math.random() * 3) + 2;
+            for(let i=0; i<coinsCount; i++) drops.push({ type: 'gold', x, y, vx: (Math.random()-0.5)*150, vy: (Math.random()-0.5)*150, amount: Math.ceil(gold/coinsCount), life: 10 });
+            drops.push({ type: 'xp', x, y, vx: (Math.random()-0.5)*80, vy: (Math.random()-0.5)*80, amount: xp, life: 10 });
+        }
+
+        function resolveSafetyCollisions() {
+            [{x:0,y:-1}, {x:0,y:1}, {x:-1,y:0}, {x:1,y:0}].forEach(dir => {
+                const cx = player.x + dir.x * (COLLISION_RADIUS + SAFE_MARGIN);
+                const cy = player.y + dir.y * (COLLISION_RADIUS + SAFE_MARGIN);
+                const tile = getTileAt(cx, cy);
+                // 1:壁, 4:青扉, 8:緑扉, 9:紫扉, 7:赤扉
+                if (tile === 1 || tile === 4 || tile === 8 || tile === 9 || tile === 7) {
+                    const tx = (Math.floor(cx/TILE_SIZE)+0.5)*TILE_SIZE, ty = (Math.floor(cy/TILE_SIZE)+0.5)*TILE_SIZE;
+                    const dx = player.x - tx, dy = player.y - ty;
+                    const len = Math.hypot(dx, dy) || 1;
+                    const min = TILE_SIZE/2 + COLLISION_RADIUS;
+                    if (len < min) {
+                        player.x += (dx/len) * (min - len); player.y += (dy/len) * (min - len);
+                        if (player.vx * dir.x > 0) player.vx = 0; if (player.vy * dir.y > 0) player.vy = 0;
+                    }
+                }
+            });
+        }
+
+        let lastTime = 0;
+        function update(time) {
+            const dt = Math.min((time - lastTime) / 1000, 0.1); lastTime = time;
+
+            if (player.state === PlayerState.DIALOGUE) {
+                if (dialogueState.active && dialogueState.lines.length > 0) {
+                    dialogueState.timer += dt;
+                    if (dialogueState.timer > 0.03) {
+                        dialogueState.timer = 0; const curLine = dialogueState.lines[dialogueState.lineIdx];
+                        if (curLine && dialogueState.charIdx < curLine.length) { dialogueState.charIdx++; document.getElementById('dialogueText').textContent = curLine.substring(0, dialogueState.charIdx); }
+                    }
+                }
+                render(); requestAnimationFrame(update); return;
+            }
+
+            const currentTile = getTileAt(player.x, player.y);
+            
+            // ポータルワープ処理
+            // タイルIDに依存せず、現在座標にポータル定義があれば判定する
+            const pc = Math.floor(player.x / TILE_SIZE);
+            const pr = Math.floor(player.y / TILE_SIZE);
+            const portal = currentScene.portals && currentScene.portals.find(p => p.c === pc && p.r === pr);
+            if (portal && !player.warping) {
+                    player.warping = true;
+                    loadScene(portal.dest, portal.sc, portal.sr);
+                    setTimeout(() => { player.warping = false; }, 500);
+            }
+
+            const isOnFloor = currentTile === 0 || currentTile === 3 || currentTile === 5 || currentTile === 6 || currentTile === 12;
+            const isInPit = currentTile === 2;
+
+            if (player.state === PlayerState.DASH) { player.dashTimer -= dt; if (player.dashTimer <= 0) player.state = PlayerState.IDLE; }
+            else if (player.state === PlayerState.ATTACK) { player.attackTimer -= dt; if (player.attackTimer <= 0) player.state = PlayerState.IDLE; }
+
+            // HP / MP 自然回復とスキルのCD処理
+            player.mp = Math.min(player.maxMp, player.mp + 5 * dt); // MPは秒間5回復
+            Object.values(player.skills).forEach(s => { if (s.cd > 0) s.cd = Math.max(0, s.cd - dt); });
+            updateHUD();
+
+            if (player.state !== PlayerState.DASH && player.state !== PlayerState.ATTACK) {
+                let dx = 0, dy = 0; if (keys['w']) dy = -1; if (keys['s']) dy = 1; if (keys['a']) dx = -1; if (keys['d']) dx = 1;
+
+                if (dx !== 0 || dy !== 0) player.angle = Math.atan2(dy, dx);
+                if (dx !== 0 || dy !== 0) { player.vx = dx * player.spd; player.vy = dy * player.spd; player.state = PlayerState.WALK; }
+                else { player.vx *= 0.2; player.vy *= 0.2; if (Math.hypot(player.vx, player.vy) < 5) { player.vx = 0; player.vy = 0; player.state = PlayerState.IDLE; } }
+            }
+
+            player.x += player.vx * dt; player.y += player.vy * dt;
+            if (isNaN(player.x)) { player.x = (currentSpawnC + 0.5) * TILE_SIZE; player.y = (currentSpawnR + 0.5) * TILE_SIZE; player.vx = 0; player.vy = 0; } // Fallback
+
+            resolveSafetyCollisions();
+
+            if (isInPit) {
+                const isHovering = player.state === PlayerState.DASH;
+                if (isHovering) player.state = PlayerState.HOVER;
+                else { player.hp -= 15; player.x = (currentSpawnC + 0.5) * TILE_SIZE; player.y = (currentSpawnR + 0.5) * TILE_SIZE; player.vx = 0; player.vy = 0; showToast("奈落に落下！スタート地点へ戻されます。"); }
+            } else if (currentTile === 3) {
+                player.hp -= 5; player.x = (currentSpawnC + 0.5) * TILE_SIZE; player.y = (currentSpawnR + 0.5) * TILE_SIZE; player.vx = 0; player.vy = 0; showToast("罠に激突！スタート地点へ戻されます。");
+            }
+            if (player.hp <= 0) { 
+                player.foodBuffs = { maxHp: 0, atk: 0, def: 0, spd: 0 }; // 料理バフリセット
+                const s = souls[player.currentSoulId];
+                player.maxHp = s.maxHp; player.atk = s.atk; player.def = s.def; player.spd = s.spd;
+                player.hp = player.maxHp; player.x = (currentSpawnC + 0.5) * TILE_SIZE; player.y = (currentSpawnR + 0.5) * TILE_SIZE; player.vx = 0; player.vy = 0; 
+                showToast("ゲームオーバー... 食事の効果が消えた。"); 
+            }
+
+            drops.forEach((drop, idx) => {
+                drop.vx *= 0.95; drop.vy *= 0.95; drop.x += drop.vx * dt; drop.y += drop.vy * dt; drop.life -= dt;
+                const dist = Math.hypot(player.x - drop.x, player.y - drop.y) || 1;
+                if (dist < 110) { const force = (110 - dist) / 110; drop.vx += ((player.x - drop.x)/dist) * 450 * force * dt; drop.vy += ((player.y - drop.y)/dist) * 450 * force * dt; }
+                if (dist < COLLISION_RADIUS + 6) {
+                    if (drop.type === 'gold') { player.gold += drop.amount; }
+                    else if (drop.type === 'xp') {
+                        player.xp += drop.amount;
+                        if (player.xp >= player.xpNeeded) {
+                            player.xp -= player.xpNeeded; player.level++; player.xpNeeded = Math.floor(player.xpNeeded*1.5);
+                            player.maxHp += 10; player.hp = player.maxHp; player.maxMp += 5; player.mp = player.maxMp; player.atk += 2; player.def += 1;
+                            
+                            // ソウルデータにも反映
+                            const s = souls[player.currentSoulId];
+                            s.level = player.level; s.maxHp = player.maxHp; s.maxMp = player.maxMp; s.atk = player.atk; s.def = player.def;
+                            
+                            const b = document.getElementById('levelUpBanner'); b.classList.add('show'); setTimeout(() => b.classList.remove('show'), 1200);
+                        }
+                    }
+                    drops.splice(idx, 1);
+                } else if (drop.life <= 0) drops.splice(idx, 1);
+            });
+
+            pushBlocks.forEach(b => {
+                if (!b.active) return;
+                b.vx *= 0.8; b.vy *= 0.8;
+                let nx = b.x + b.vx * dt, ny = b.y + b.vy * dt;
+                const tile = getTileAt(nx, ny);
+                if (tile === 1 || tile === 4 || tile === 8 || tile === 9 || tile === 7 || tile === 3) { b.vx = 0; b.vy = 0; }
+                else if (tile === 2) {
+                    b.active = false; map[Math.floor(ny/TILE_SIZE)][Math.floor(nx/TILE_SIZE)] = 0;
+                    for(let i=0; i<15; i++) damageParticles.push({ x: nx, y: ny, vx: (Math.random()-0.5)*120, vy: (Math.random()-0.5)*120, life: 0.5, color: '#94a3b8' });
+                } else { b.x = nx; b.y = ny; }
+            });
+
+            enemies.forEach(e => e.update(dt));
+
+            for (let i = enemyProjectiles.length - 1; i >= 0; i--) {
+                enemyProjectiles[i].update(dt);
+                if (!enemyProjectiles[i].active || enemyProjectiles[i].life <= 0) enemyProjectiles.splice(i, 1);
+            }
+
+            swordSlashes.forEach(s => s.life -= dt); damageParticles.forEach(p => { p.x += p.vx*dt; p.y += p.vy*dt; p.life -= dt; });
+            camera.x += (player.x - camera.x) * 10 * dt; camera.y += (player.y - camera.y) * 10 * dt;
+
+            updateHUD();
+            render();
+            requestAnimationFrame(update);
+        }
+
+        function updateHUD() {
+            document.getElementById('hpText').textContent = `${Math.floor(player.hp)}/${player.maxHp}`;
+            document.getElementById('hpBar').style.width = `${(Math.max(0, player.hp)/player.maxHp)*100}%`;
+            document.getElementById('mpText').textContent = `${Math.floor(player.mp)}/${player.maxMp}`;
+            document.getElementById('mpBar').style.width = `${(Math.max(0, player.mp)/player.maxMp)*100}%`;
+            document.getElementById('atkDisplay').textContent = `ATK: ${player.atk}`;
+            document.getElementById('defDisplay').textContent = `DEF: ${player.def}`;
+            
+            document.getElementById('xpBar').style.width = `${(player.xp/player.xpNeeded)*100}%`;
+            document.getElementById('levelDisplay').textContent = `LV ${player.level}`;
+            document.getElementById('goldDisplay').textContent = `${player.gold} G`;
+        }
+
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.save();
+            ctx.translate(canvas.width / 2, canvas.height / 2);
+            if(isNaN(camera.x) || isNaN(camera.y)) { camera.x = 112; camera.y = 1360; }
+            ctx.translate(-camera.x, -camera.y);
+
+            const startCol = Math.max(0, Math.floor((camera.x - canvas.width/2)/TILE_SIZE));
+            const endCol = Math.min(MAP_COLS, Math.ceil((camera.x + canvas.width/2)/TILE_SIZE));
+            const startRow = Math.max(0, Math.floor((camera.y - canvas.height/2)/TILE_SIZE));
+            const endRow = Math.min(MAP_ROWS, Math.ceil((camera.y + canvas.height/2)/TILE_SIZE));
+
+            for (let r = startRow; r < endRow; r++) {
+                for (let c = startCol; c < endCol; c++) {
+                    const tile = map[r][c]; const tx = c * TILE_SIZE, ty = r * TILE_SIZE; const theme = currentScene.getTheme();
+                    if (tile === 1) { ctx.fillStyle = theme.wall; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE); ctx.strokeStyle = theme.border; ctx.lineWidth = 1; ctx.strokeRect(tx, ty, TILE_SIZE, TILE_SIZE); }
+                    else if (tile === 10) { ctx.fillStyle = '#64748b'; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE); ctx.strokeStyle = '#475569'; ctx.strokeRect(tx, ty, TILE_SIZE, TILE_SIZE); }
+                    else if (tile === 2) { ctx.fillStyle = theme.pit; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE); }
+                    else if (tile === 3) { ctx.fillStyle = theme.floor; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE); ctx.fillStyle = theme.spike; ctx.beginPath(); ctx.moveTo(tx, ty+TILE_SIZE); ctx.lineTo(tx+8, ty); ctx.lineTo(tx+16, ty+TILE_SIZE); ctx.lineTo(tx+24, ty); ctx.lineTo(tx+32, ty+TILE_SIZE); ctx.fill(); }
+                    else if (tile === 4) { ctx.fillStyle = '#3f3f46'; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE); ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 2; ctx.strokeRect(tx, ty, TILE_SIZE, TILE_SIZE); ctx.fillStyle = '#38bdf8'; ctx.beginPath(); ctx.arc(tx+16, ty+10, 4, 0, Math.PI*2); ctx.fill(); ctx.fillRect(tx+14, ty+13, 4, 8); }
+                    else if (tile === 8) { ctx.fillStyle = '#3f3f46'; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE); ctx.strokeStyle = '#10b981'; ctx.lineWidth = 2; ctx.strokeRect(tx, ty, TILE_SIZE, TILE_SIZE); ctx.fillStyle = '#10b981'; ctx.beginPath(); ctx.arc(tx+16, ty+10, 4, 0, Math.PI*2); ctx.fill(); ctx.fillRect(tx+14, ty+13, 4, 8); }
+                    else if (tile === 9) { ctx.fillStyle = '#3f3f46'; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE); ctx.strokeStyle = '#a855f7'; ctx.lineWidth = 2; ctx.strokeRect(tx, ty, TILE_SIZE, TILE_SIZE); ctx.fillStyle = '#a855f7'; ctx.beginPath(); ctx.arc(tx+16, ty+10, 4, 0, Math.PI*2); ctx.fill(); ctx.fillRect(tx+14, ty+13, 4, 8); }
+                    else if (tile === 7) { ctx.fillStyle = '#3f3f46'; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE); ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 2; ctx.strokeRect(tx, ty, TILE_SIZE, TILE_SIZE); ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(tx+16, ty+10, 4, 0, Math.PI*2); ctx.fill(); ctx.fillRect(tx+14, ty+13, 4, 8); }
+                    else if (tile === 5) { ctx.fillStyle = '#0f172a'; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE); ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 2; ctx.strokeRect(tx+4, ty+4, 24, 24); ctx.fillStyle = '#38bdf8'; ctx.beginPath(); ctx.arc(tx+16, ty+16, 5, 0, Math.PI*2); ctx.fill(); }
+                    else if (tile === 12) {
+                        ctx.fillStyle = theme.floor; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
+                        ctx.strokeStyle = '#c084fc'; ctx.lineWidth = 2;
+                        ctx.beginPath(); ctx.arc(tx+16, ty+16, 12 + Math.sin(Date.now()/200)*2, 0, Math.PI*2); ctx.stroke();
+                        ctx.fillStyle = '#c084fc'; ctx.globalAlpha = 0.3; ctx.fill(); ctx.globalAlpha = 1.0;
+                    }
+                    else if (tile === 17) {
+                        ctx.fillStyle = theme.floor; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
+                        ctx.fillStyle = '#8b4513'; ctx.fillRect(tx+2, ty+2, 28, 28);
+                        ctx.fillStyle = '#fef08a'; ctx.fillRect(tx+6, ty+6, 8, 10); ctx.fillRect(tx+18, ty+10, 8, 10);
+                        ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(tx+10, ty+8, 1.5, 0, Math.PI*2); ctx.fill();
+                        ctx.beginPath(); ctx.arc(tx+22, ty+12, 1.5, 0, Math.PI*2); ctx.fill();
+                    }
+                    else if (tile >= 13 && tile <= 19) {
+                        if (tile === 13 && imgGuild.complete && imgGuild.naturalWidth > 0) {
+                            // ギルドの画像を描画（扉の位置 tx, ty を基準に建物を配置）
+                            ctx.drawImage(imgGuild, tx - 64, ty - 128, 160, 160);
+                        } else {
+                            ctx.fillStyle = theme.floor; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
+                            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
+                            ctx.font = '20px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                            let icon = '🚪';
+                            if (tile === 13) icon = '⚔️';
+                            if (tile === 14) icon = '🔨';
+                            if (tile === 15) icon = '🔮';
+                            if (tile === 16) icon = '🛏️';
+                            if (tile === 18) icon = '🏰';
+                            if (tile === 19) icon = '🗡️';
+                            ctx.fillText(icon, tx + TILE_SIZE/2, ty + TILE_SIZE/2 + 2);
+                        }
+                    }
+                    else { ctx.fillStyle = theme.floor; ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE); ctx.strokeStyle = 'rgba(255,255,255,0.03)'; ctx.strokeRect(tx, ty, TILE_SIZE, TILE_SIZE); }
+                }
+            }
+
+            chests.forEach(chest => {
+                ctx.save(); ctx.translate(chest.x, chest.y);
+                ctx.fillStyle = chest.opened ? '#a1a1aa' : chest.color; ctx.shadowColor = chest.color; ctx.shadowBlur = chest.opened ? 0 : 12;
+                ctx.fillRect(-12, -10, 24, 20); ctx.fillStyle = '#3f3f46'; ctx.fillRect(-4, -10, 8, 20);
+                ctx.fillStyle = chest.opened ? '#71717a' : '#fff'; ctx.fillRect(-2, -2, 4, 6); ctx.restore();
+            });
+
+            drops.forEach(drop => {
+                ctx.save(); ctx.translate(drop.x, drop.y); ctx.shadowBlur = 8;
+                if (drop.type === 'gold') { ctx.fillStyle = '#fbbf24'; ctx.shadowColor = '#fbbf24'; ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI*2); ctx.fill(); }
+                else { ctx.fillStyle = '#10b981'; ctx.shadowColor = '#10b981'; ctx.beginPath(); ctx.arc(0, 0, 3, 0, Math.PI*2); ctx.fill(); }
+                ctx.restore();
+            });
+
+            pushBlocks.forEach(b => {
+                if (!b.active) return;
+                ctx.fillStyle = '#475569'; ctx.fillRect(b.x - 14, b.y - 14, 28, 28);
+                ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 2; ctx.strokeRect(b.x - 14, b.y - 14, 28, 28);
+                ctx.fillStyle = '#38bdf8'; ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI*2); ctx.fill();
+            });
+
+            bossCrystals.forEach(c => {
+                ctx.fillStyle = c.active ? '#38bdf8' : '#3f3f46'; ctx.shadowBlur = c.active ? 15 : 0; ctx.shadowColor = '#38bdf8';
+                ctx.beginPath(); ctx.moveTo(c.x, c.y - 12); ctx.lineTo(c.x + 8, c.y); ctx.lineTo(c.x, c.y + 12); ctx.lineTo(c.x - 8, c.y); ctx.fill(); ctx.shadowBlur = 0;
+            });
+
+            npcs.forEach(n => {
+                ctx.fillStyle = currentScene.getTheme().npc; ctx.shadowColor = currentScene.getTheme().npc; ctx.shadowBlur = 15;
+                ctx.fillRect(n.x - 4, n.y - 8, 8, 16); ctx.beginPath(); ctx.arc(n.x, n.y - 10, 4, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
+            });
+
+            enemies.forEach(e => e.render(ctx));
+
+            enemyProjectiles.forEach(p => p.render(ctx));
+
+            swordSlashes.forEach(s => {
+                if (s.life <= 0) return; ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.angle); ctx.strokeStyle = 'rgba(56, 189, 248, 0.8)'; ctx.lineWidth = 4;
+                ctx.beginPath(); ctx.arc(0, 0, 24, -Math.PI/3, Math.PI/3); ctx.stroke(); ctx.restore();
+            });
+
+            damageParticles.forEach(p => { if (p.life > 0) { ctx.fillStyle = p.color; ctx.fillRect(p.x-2, p.y-2, 4, 4); }});
+
+            if (!isNaN(player.x) && !isNaN(player.y) && !isNaN(player.angle)) {
+                if (imgHeroFront.complete && imgHeroFront.naturalWidth > 0) {
+                    ctx.save(); ctx.translate(player.x, player.y);
+                    let img = imgHeroFront;
+                    let a = player.angle * 180 / Math.PI;
+                    if (a > 45 && a < 135) img = imgHeroFront; // 下
+                    else if (a < -45 && a > -135) img = imgHeroBack; // 上
+                    else if (Math.abs(a) <= 45) { img = imgHeroRight; } // 右
+                    else { img = imgHeroLeft; } // 左
+                    // プログラム上の当たり判定(直径24)とマップタイル(32)に合わせたサイズ
+                    ctx.drawImage(img, -18, -24, 36, 44);
+                    ctx.restore();
+                } else {
+                    ctx.save(); ctx.translate(player.x, player.y); ctx.rotate(player.angle);
+                    ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.arc(0, 4, COLLISION_RADIUS, 0, Math.PI*2); ctx.fill();
+                    ctx.fillStyle = player.isZeroFriction ? '#c084fc' : '#38bdf8'; ctx.shadowColor = player.isZeroFriction ? '#a855f7' : '#38bdf8';
+                    ctx.shadowBlur = 15; ctx.beginPath(); ctx.arc(0, 0, COLLISION_RADIUS, 0, Math.PI*2); ctx.fill();
+                    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(4, -3, 3, 0, Math.PI*2); ctx.arc(4, 3, 3, 0, Math.PI*2); ctx.fill();
+                    ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(5, -3, 1.5, 0, Math.PI*2); ctx.arc(5, 3, 1.5, 0, Math.PI*2); ctx.fill();
+                    ctx.restore();
+                }
+            }
+
+            ctx.restore();
+            
+            drawMinimap(ctx);
+        }
+
+        function drawMinimap(ctx) {
+            const mmSize = 150;
+            const padding = 20;
+            const x = canvas.width - mmSize - padding;
+            const y = padding;
+            
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.lineWidth = 2;
+            ctx.fillRect(x, y, mmSize, mmSize);
+            ctx.strokeRect(x, y, mmSize, mmSize);
+            
+            const scaleX = mmSize / (MAP_COLS * TILE_SIZE);
+            const scaleY = mmSize / (MAP_ROWS * TILE_SIZE);
+            const scale = Math.min(scaleX, scaleY);
+            
+            const offsetX = x + (mmSize - (MAP_COLS * TILE_SIZE * scale)) / 2;
+            const offsetY = y + (mmSize - (MAP_ROWS * TILE_SIZE * scale)) / 2;
+            
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            for(let r=0; r<MAP_ROWS; r++) {
+                for(let c=0; c<MAP_COLS; c++) {
+                    const tile = map[r][c];
+                    if(tile === 1) {
+                        ctx.fillRect(offsetX + c*TILE_SIZE*scale, offsetY + r*TILE_SIZE*scale, TILE_SIZE*scale, TILE_SIZE*scale);
+                    } else if (tile >= 12 && tile <= 19) {
+                        ctx.fillStyle = '#fbbf24';
+                        ctx.fillRect(offsetX + c*TILE_SIZE*scale, offsetY + r*TILE_SIZE*scale, TILE_SIZE*scale, TILE_SIZE*scale);
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                    }
+                }
+            }
+            
+            // Player
+            ctx.fillStyle = '#38bdf8';
+            ctx.beginPath();
+            ctx.arc(offsetX + player.x * scale, offsetY + player.y * scale, 3, 0, Math.PI*2);
+            ctx.fill();
+        }
+
+        loadScene('city', 40, 32);
+        requestAnimationFrame(update);
+    </script>
+</body>
+</html>
